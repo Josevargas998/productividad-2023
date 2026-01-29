@@ -3,227 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Captura de Productividad - Uniquindio</title>
+    <title>Productividad Uniquindio 2023</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, query, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // CONFIGURACIÓN Y SERVICIOS
-        let db, auth, appId, userUid;
-        
-        const logError = (msg, details = "") => {
-            const container = document.getElementById('debug-log');
-            container.classList.remove('hidden');
-            const entry = document.createElement('div');
-            entry.className = "text-red-600 text-[10px] mb-1 p-1 bg-red-50 rounded border border-red-100";
-            entry.innerText = `${new Date().toLocaleTimeString()}: ${msg} ${details}`;
-            container.appendChild(entry);
-            console.error(msg, details);
+        // Global state
+        let db, auth, appId, user;
+
+        const showMessage = (msg, isError = false) => {
+            const banner = document.getElementById('status-banner');
+            banner.innerText = msg;
+            banner.className = `fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full text-white font-bold shadow-2xl transition-all z-50 ${isError ? 'bg-red-500' : 'bg-green-500'}`;
+            banner.style.display = 'block';
+            setTimeout(() => { banner.style.display = 'none'; }, 3000);
         };
 
-        const showStatus = (msg, isError = false) => {
-            const statusMsg = document.getElementById('status-message');
-            statusMsg.innerText = msg;
-            statusMsg.className = `p-4 rounded-xl text-center mb-6 font-bold shadow-sm transition-all ${isError ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-green-100 text-green-700 border border-green-200'}`;
-            statusMsg.classList.remove('hidden');
-            setTimeout(() => statusMsg.classList.add('hidden'), 5000);
-        };
-
-        async function init() {
+        async function initApp() {
             try {
-                // Obtener configuración global
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-                appId = typeof __app_id !== 'undefined' ? __app_id : 'uniquindio-default';
+                // Environment variables provided by the platform
+                const firebaseConfig = JSON.parse(__firebase_config);
+                appId = typeof __app_id !== 'undefined' ? __app_id : 'uniquindio-prod';
                 
-                if (!firebaseConfig) {
-                    logError("No se encontró la configuración de Firebase.");
-                    return;
-                }
-
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                // Autenticación (MANDATORIO REGLA 3)
+                // RULE 3: Auth before queries
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                     await signInAnonymously(auth);
                 }
 
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userUid = user.uid;
-                        console.log("Autenticado como:", userUid);
-                        startApp();
-                    } else {
-                        logError("Usuario desconectado.");
+                onAuthStateChanged(auth, (u) => {
+                    if (u) {
+                        user = u;
+                        startDataListeners();
                     }
                 });
-
-            } catch (err) {
-                logError("Fallo en inicialización:", err.message);
+            } catch (error) {
+                console.error("Initialization error:", error);
+                showMessage("Error de conexión al sistema", true);
             }
         }
 
-        function startApp() {
-            // Escuchar registros en tiempo real (Regla 1: Ruta estricta)
-            const colPath = collection(db, 'artifacts', appId, 'public', 'data', 'registros');
-            
-            onSnapshot(colPath, (snapshot) => {
-                document.getElementById('record-count').innerText = snapshot.size;
+        function startDataListeners() {
+            if (!user) return;
+
+            // RULE 1: Strict Paths for public data
+            const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'produccion_2023');
+
+            // Real-time counter
+            onSnapshot(colRef, (snapshot) => {
+                document.getElementById('counter').innerText = snapshot.size;
             }, (error) => {
-                logError("Error de lectura (onSnapshot):", error.message);
-            });
-
-            // Manejar Formulario
-            const form = document.getElementById('product-form');
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                if (!userUid) {
-                    showStatus("Error: Esperando autenticación...", true);
-                    return;
-                }
-
-                const btn = e.target.querySelector('button');
-                btn.disabled = true;
-                btn.innerText = "GUARDANDO...";
-
-                const data = {
-                    titulo: document.getElementById('titulo').value,
-                    autor: document.getElementById('autor').value,
-                    facultad: document.getElementById('facultad').value,
-                    año: document.getElementById('año').value,
-                    timestamp: serverTimestamp(),
-                    creadoPor: userUid
-                };
-
-                try {
-                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'registros'), data);
-                    form.reset();
-                    showStatus("✅ ¡Registro guardado exitosamente!");
-                } catch (error) {
-                    logError("Error al guardar:", error.message);
-                    showStatus("❌ Error al guardar en la base de datos", true);
-                } finally {
-                    btn.disabled = false;
-                    btn.innerText = "GUARDAR REGISTRO";
-                }
+                console.error("Firestore error:", error);
             });
         }
 
-        // Exportar a CSV
-        window.exportarCSV = async () => {
-            if (!userUid) return;
+        // Handle Form Submission
+        window.saveData = async (event) => {
+            event.preventDefault();
+            if (!user) {
+                showMessage("No autenticado", true);
+                return;
+            }
+
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.innerText = "GUARDANDO...";
+
+            const data = {
+                titulo: document.getElementById('titulo').value,
+                autor: document.getElementById('autor').value,
+                facultad: document.getElementById('facultad').value,
+                anio: document.getElementById('anio').value,
+                createdAt: serverTimestamp(),
+                uid: user.uid
+            };
+
             try {
-                const querySnapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'registros'));
-                if (querySnapshot.empty) {
-                    showStatus("No hay datos para exportar", true);
-                    return;
-                }
-
-                let csvContent = "Titulo,Autor,Facultad,Año\n";
-                querySnapshot.forEach((doc) => {
-                    const d = doc.data();
-                    csvContent += `"${d.titulo}","${d.autor}","${d.facultad}",${d.año}\n`;
-                });
-
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.setAttribute('hidden', '');
-                a.setAttribute('href', url);
-                a.setAttribute('download', 'registros_uniquindio.csv');
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                // RULE 1: Saving to the correct path
+                const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'produccion_2023');
+                await addDoc(colRef, data);
+                
+                document.getElementById('prod-form').reset();
+                showMessage("¡Información guardada en la nube!");
             } catch (error) {
-                logError("Error exportando:", error.message);
+                console.error("Save error:", error);
+                showMessage("Error al guardar información", true);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "GUARDAR REGISTRO";
             }
         };
 
-        window.onload = init;
+        window.onload = initApp;
     </script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .uq-header { border-bottom: 6px solid #0056b3; }
-    </style>
 </head>
-<body class="p-4 sm:p-6 lg:p-10">
-    <div class="max-w-xl mx-auto">
-        <!-- Panel Superior -->
-        <div class="bg-white rounded-3xl shadow-xl overflow-hidden mb-6 uq-header">
-            <div class="p-8">
-                <div class="flex justify-between items-start">
+<body class="bg-[#f0f2f5] min-h-screen font-sans">
+
+    <div id="status-banner" style="display: none;"></div>
+
+    <div class="max-w-xl mx-auto pt-10 px-4">
+        <!-- Main Card -->
+        <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+            <!-- Header -->
+            <div class="bg-[#003d2b] p-8 text-white relative">
+                <div class="flex items-center gap-4">
+                    <div class="bg-white/20 p-3 rounded-2xl">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    </div>
                     <div>
-                        <h1 class="text-3xl font-black text-slate-900 tracking-tighter">UNIQUINDIO</h1>
-                        <p class="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">Gestión de Productividad</p>
-                    </div>
-                    <div class="bg-slate-100 p-2 rounded-xl">
-                        <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                        <h1 class="text-xl font-bold tracking-tight">Productividad Académica</h1>
+                        <p class="text-xs text-green-300 font-semibold tracking-widest uppercase">Universidad del Quindío</p>
                     </div>
                 </div>
-                
-                <div class="mt-8 flex items-center bg-blue-50 rounded-2xl p-6 border border-blue-100">
-                    <div class="flex-1">
-                        <p class="text-blue-600 font-black text-[10px] uppercase tracking-wider">Total de Productos</p>
-                        <div id="record-count" class="text-5xl font-black text-blue-900 leading-none">...</div>
-                    </div>
-                    <button onclick="exportarCSV()" class="bg-white text-blue-700 px-4 py-3 rounded-xl font-black text-xs shadow-sm hover:shadow-md transition-all border border-blue-200">
-                        EXPORTAR CSV
-                    </button>
+
+                <!-- Live Counter -->
+                <div class="mt-6 flex items-baseline gap-2 bg-black/20 w-fit px-4 py-2 rounded-xl">
+                    <span id="counter" class="text-3xl font-black">0</span>
+                    <span class="text-[10px] font-bold uppercase opacity-70">Registros Totales</span>
                 </div>
             </div>
+
+            <!-- Form -->
+            <form id="prod-form" onsubmit="window.saveData(event)" class="p-8 space-y-6">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Título de la Obra</label>
+                    <input type="text" id="titulo" required class="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 text-gray-700 focus:border-[#003d2b] focus:bg-white outline-none transition-all" placeholder="Nombre de la publicación o proyecto">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Autor / Investigador</label>
+                    <input type="text" id="autor" required class="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 text-gray-700 focus:border-[#003d2b] focus:bg-white outline-none transition-all" placeholder="Nombre completo del docente">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Facultad</label>
+                        <select id="facultad" class="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 text-gray-700 focus:border-[#003d2b] outline-none appearance-none">
+                            <option>Ingeniería</option>
+                            <option>Educación</option>
+                            <option>Ciencias de la Salud</option>
+                            <option>Ciencias Básicas</option>
+                            <option>Ciencias Humanas</option>
+                            <option>Economía y Administración</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Año</label>
+                        <input type="number" id="anio" value="2023" class="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 text-gray-700 focus:border-[#003d2b] outline-none">
+                    </div>
+                </div>
+
+                <button type="submit" id="submit-btn" class="w-full bg-[#003d2b] hover:bg-[#002a1d] text-white font-bold py-5 rounded-2xl transition-all shadow-lg active:scale-95 uppercase tracking-widest text-sm">
+                    Guardar Registro
+                </button>
+            </form>
         </div>
 
-        <div id="status-message" class="hidden"></div>
-
-        <!-- Formulario -->
-        <form id="product-form" class="bg-white p-8 rounded-3xl shadow-xl space-y-5">
-            <div>
-                <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Título de la Obra</label>
-                <input type="text" id="titulo" required class="w-full mt-1 bg-slate-50 border-2 border-slate-100 rounded-xl p-4 outline-none focus:border-blue-500 transition-all font-medium text-slate-700" placeholder="Ej: Avances en Robótica...">
-            </div>
-
-            <div>
-                <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Autor Principal</label>
-                <input type="text" id="autor" required class="w-full mt-1 bg-slate-50 border-2 border-slate-100 rounded-xl p-4 outline-none focus:border-blue-500 transition-all font-medium text-slate-700" placeholder="Nombre del docente">
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Facultad</label>
-                    <select id="facultad" class="w-full mt-1 bg-slate-50 border-2 border-slate-100 rounded-xl p-4 outline-none cursor-pointer focus:border-blue-500 text-slate-700 font-medium">
-                        <option>Ingeniería</option>
-                        <option>Educación</option>
-                        <option>Salud</option>
-                        <option>Ciencias Básicas</option>
-                        <option>Economía</option>
-                        <option>Humanidades</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-[10px] font-black text-slate-400 uppercase ml-1">Año</label>
-                    <input type="number" id="año" value="2023" class="w-full mt-1 bg-slate-50 border-2 border-slate-100 rounded-xl p-4 outline-none focus:border-blue-500 text-slate-700 font-medium">
-                </div>
-            </div>
-
-            <button type="submit" class="w-full bg-slate-900 text-white font-black py-5 rounded-2xl hover:bg-blue-800 transition-all shadow-lg text-sm tracking-widest uppercase mt-4">
-                Guardar Registro
-            </button>
-        </form>
-
-        <!-- Debug Log (Solo visible si hay errores) -->
-        <div id="debug-log" class="mt-6 hidden bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <p class="text-[9px] font-black text-slate-400 uppercase mb-2">Registro Técnico de Errores</p>
-        </div>
-
-        <p class="text-center text-[9px] text-slate-400 mt-8 font-black uppercase tracking-[0.4em]">
-            Universidad del Quindío · 2023
+        <p class="text-center mt-8 text-[10px] text-gray-400 font-bold uppercase tracking-[0.4em]">
+            Vigencia 2023 • Sistema de Captura
         </p>
     </div>
+
 </body>
 </html>
