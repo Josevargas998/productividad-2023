@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Captura de Productividad - Uniquindio</title>
+    <title>Sistema de Productividad UQ</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
-        // CONFIGURACIÓN (Tus llaves de Firebase)
         const firebaseConfig = {
             apiKey: "AIzaSyBbqMf8ZOmqmbGTmr2tr8nziyUWKSE6OWg",
             authDomain: "uniquindio-produccion.firebaseapp.com",
@@ -25,7 +26,7 @@
         const auth = getAuth(app);
         const appId = 'uniquindio-produccion';
 
-        // Lógica para cambiar campos según categoría
+        // Lógica de interfaz: Cambiar campos según lo que se elija
         window.cambiarCategoria = () => {
             const cat = document.getElementById('categoria').value;
             const camposExtra = document.getElementById('campos-dinamicos');
@@ -34,34 +35,44 @@
                 camposExtra.innerHTML = `
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">ISSN</label>
-                            <input type="text" id="issn" placeholder="Ej: 1932-8540" class="mt-1 block w-full rounded-md border-gray-300 p-2 bg-gray-50 border">
+                            <label class="block text-xs font-bold text-gray-500 uppercase">ISSN Revista</label>
+                            <input type="text" id="issn" placeholder="Ej: 1932-8540" class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50 border focus:ring-2 focus:ring-green-600 outline-none">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Categoría Revista</label>
-                            <select id="r_cat" class="mt-1 block w-full rounded-md border-gray-300 p-2 bg-gray-50 border">
-                                <option>A1</option><option>A2</option><option>B</option><option>C</option>
+                            <label class="block text-xs font-bold text-gray-500 uppercase">Categoría</label>
+                            <select id="r_cat" class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50 border outline-none">
+                                <option>A1</option><option>A2</option><option>B</option><option>C</option><option>No Indexada</option>
                             </select>
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Nombre de la Revista</label>
-                        <input type="text" id="revista" class="mt-1 block w-full rounded-md border-gray-300 p-2 bg-gray-50 border">
+                        <label class="block text-xs font-bold text-gray-500 uppercase">Nombre de la Revista</label>
+                        <input type="text" id="revista" class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50 border focus:ring-2 focus:ring-green-600 outline-none">
+                    </div>`;
+            } else if (cat === 'LibroTexto') {
+                camposExtra.innerHTML = `
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase">ISBN</label>
+                        <input type="text" id="isbn" placeholder="Ej: 978-628..." class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50 border focus:ring-2 focus:ring-green-600 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 uppercase">Espacio Académico</label>
+                        <input type="text" id="espacio" placeholder="Nombre de la asignatura" class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50 border focus:ring-2 focus:ring-green-600 outline-none">
                     </div>`;
             } else {
                 camposExtra.innerHTML = `
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">ISBN</label>
-                        <input type="text" id="isbn" placeholder="Ej: 978-628..." class="mt-1 block w-full rounded-md border-gray-300 p-2 bg-gray-50 border">
+                        <label class="block text-xs font-bold text-gray-500 uppercase">ISBN</label>
+                        <input type="text" id="isbn" class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50 border">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Espacio Académico / Programa</label>
-                        <input type="text" id="espacio" class="mt-1 block w-full rounded-md border-gray-300 p-2 bg-gray-50 border">
+                        <label class="block text-xs font-bold text-gray-500 uppercase">Programa Académico</label>
+                        <input type="text" id="programa" placeholder="Ej: Medicina, Ingeniería..." class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50 border">
                     </div>`;
             }
         };
 
-        // Autenticación y Contador
+        // Autenticación y Contador en tiempo real
         signInAnonymously(auth);
         onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -72,122 +83,142 @@
             }
         });
 
-        // Guardar Datos
+        // Guardar en Firebase
         document.getElementById('product-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const submitBtn = e.target.querySelector('button');
-            submitBtn.disabled = true;
-            submitBtn.innerText = "Guardando...";
+            const btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.innerText = "PROCESANDO...";
 
-            const cat = document.getElementById('categoria').value;
             const datos = {
-                categoria: cat,
+                categoria: document.getElementById('categoria').value,
                 titulo: document.getElementById('titulo').value,
                 autor: document.getElementById('autor').value,
                 facultad: document.getElementById('facultad').value,
                 anio: document.getElementById('anio').value,
                 createdAt: serverTimestamp(),
-                // Campos condicionales
+                // Captura dinámica según los campos que existan en ese momento
                 issn: document.getElementById('issn')?.value || '',
-                revista: document.getElementById('revista')?.value || '',
                 cat_revista: document.getElementById('r_cat')?.value || '',
+                revista: document.getElementById('revista')?.value || '',
                 isbn: document.getElementById('isbn')?.value || '',
-                espacio_academico: document.getElementById('espacio')?.value || ''
+                espacio_academico: document.getElementById('espacio')?.value || '',
+                programa: document.getElementById('programa')?.value || ''
             };
 
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'registros_detallados'), datos);
                 e.target.reset();
                 window.cambiarCategoria();
-                alert("✅ ¡Guardado!");
-            } catch (error) {
-                console.error(error);
-                alert("❌ Error");
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerText = "Guardar Registro";
+                alert("✅ Registro guardado correctamente");
+            } catch (e) { alert("❌ Error al guardar"); }
+            finally { 
+                btn.disabled = false; 
+                btn.innerText = "GUARDAR REGISTRO"; 
             }
         });
 
-        // Exportar a Excel (CSV) con todas las columnas
-        window.exportarExcel = () => {
-            const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'registros_detallados'));
-            onSnapshot(q, (snapshot) => {
-                let csv = "Categoría,Título,Autor,Facultad,Año,ISSN/ISBN,Revista/Programa,Cat Revista\n";
-                snapshot.forEach(doc => {
-                    const d = doc.data();
-                    const id_numero = d.issn || d.isbn || '';
-                    const lugar = d.revista || d.espacio_academico || '';
-                    csv += `"${d.categoria}","${d.titulo}","${d.autor}","${d.facultad}",${d.anio},"${id_numero}","${lugar}","${d.cat_revista || ''}"\n`;
-                });
-                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement("a");
-                link.href = URL.createObjectURL(blob);
-                link.download = "Productividad_Uniquindio.csv";
-                link.click();
-            }, { once: true });
+        // EXPORTAR EXCEL CON PESTAÑAS (HOJAS)
+        window.exportarExcelFinal = async () => {
+            const querySnapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'registros_detallados'));
+            
+            const revistas = [];
+            const libroTexto = [];
+            const libroEnsayo = [];
+
+            querySnapshot.forEach((doc) => {
+                const d = doc.data();
+                const base = { AÑO: d.anio, TÍTULO: d.titulo, AUTOR: d.autor, FACULTAD: d.facultad };
+
+                if (d.categoria === 'Articulo') {
+                    revistas.push({ ...base, ISSN: d.issn, REVISTA: d.revista, CATEGORIA: d.cat_revista });
+                } else if (d.categoria === 'LibroTexto') {
+                    libroTexto.push({ ...base, ISBN: d.isbn, "ESPACIO ACADÉMICO": d.espacio_academico });
+                } else {
+                    libroEnsayo.push({ ...base, ISBN: d.isbn, PROGRAMA: d.programa });
+                }
+            });
+
+            const wb = XLSX.utils.book_new();
+            
+            if(revistas.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(revistas), "Publicac. Rev. Index");
+            if(libroTexto.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(libroTexto), "Libro Texto");
+            if(libroEnsayo.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(libroEnsayo), "Libro Ensayo");
+
+            XLSX.writeFile(wb, "Compilado_Productividad_2024.xlsx");
         };
 
         window.onload = window.cambiarCategoria;
     </script>
 </head>
-<body class="bg-gray-100 p-4 md:p-8">
-    <div class="max-w-2xl mx-auto">
-        <div class="bg-white p-6 rounded-xl shadow-md border-t-8 border-green-800 mb-6 text-center">
-            <h1 class="text-2xl font-bold text-gray-800">Universidad del Quindío</h1>
-            <p class="text-gray-600">Gestión de Productividad Académica</p>
-            
-            <div class="mt-4 flex items-center justify-between bg-green-50 p-4 rounded-lg">
-                <div class="text-left">
-                    <span class="text-xs text-green-700 font-bold uppercase">Registros</span>
-                    <div class="text-3xl font-black text-green-900" id="record-count">0</div>
+<body class="bg-gray-50 min-h-screen p-4">
+    <div class="max-w-2xl mx-auto space-y-6">
+        
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="text-center md:text-left">
+                <h1 class="text-2xl font-black text-green-900 leading-tight">UniQuindío</h1>
+                <p class="text-xs font-bold text-green-700 uppercase tracking-widest">Productividad Académica</p>
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="text-center">
+                    <div class="text-3xl font-black text-gray-800" id="record-count">0</div>
+                    <div class="text-[10px] text-gray-400 font-bold uppercase">Total</div>
                 </div>
-                <button onclick="exportarExcel()" class="bg-white border border-green-200 text-green-700 px-4 py-2 rounded-lg shadow-sm hover:bg-green-100 font-bold transition-all">
-                    📊 Descargar para Excel
+                <button onclick="exportarExcelFinal()" class="bg-green-800 hover:bg-green-900 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg shadow-green-100 transition-all">
+                    📊 DESCARGAR EXCEL
                 </button>
             </div>
         </div>
 
-        <form id="product-form" class="bg-white p-8 rounded-xl shadow-md space-y-6">
+        <form id="product-form" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-6">
             <div>
-                <label class="block text-sm font-bold text-gray-700 uppercase">Tipo de Producto</label>
-                <select id="categoria" onchange="cambiarCategoria()" class="mt-1 block w-full rounded-md border-gray-300 p-3 bg-gray-50 border focus:ring-2 focus:ring-green-800 outline-none">
-                    <option value="Articulo">Articulo en Revista Indexada 📑</option>
-                    <option value="Libro">Libro de Texto / Ensayo 📖</option>
+                <label class="block text-xs font-bold text-gray-500 uppercase mb-2">¿Qué vas a registrar?</label>
+                <select id="categoria" onchange="cambiarCategoria()" class="w-full rounded-xl border-gray-200 p-4 bg-gray-50 border-2 focus:border-green-800 outline-none font-medium">
+                    <option value="Articulo">Publicación en Revista Indexada</option>
+                    <option value="LibroTexto">Libro de Texto</option>
+                    <option value="LibroEnsayo">Libro de Ensayo</option>
                 </select>
             </div>
 
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Título de la Obra</label>
-                    <input type="text" id="titulo" required class="mt-1 block w-full rounded-md border-gray-300 p-3 bg-gray-50 border">
+                    <label class="block text-xs font-bold text-gray-500 uppercase">Título de la Obra</label>
+                    <input type="text" id="titulo" required class="mt-1 w-full rounded-lg border-gray-300 p-3 bg-gray-50 border focus:ring-2 focus:ring-green-600 outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Autor / Investigador</label>
-                    <input type="text" id="autor" required class="mt-1 block w-full rounded-md border-gray-300 p-3 bg-gray-50 border">
+                    <label class="block text-xs font-bold text-gray-500 uppercase">Autor Principal</label>
+                    <input type="text" id="autor" required class="mt-1 w-full rounded-lg border-gray-300 p-3 bg-gray-50 border focus:ring-2 focus:ring-green-600 outline-none">
                 </div>
             </div>
 
-            <div id="campos-dinamicos" class="bg-blue-50/50 p-4 rounded-xl space-y-4 border border-blue-100"></div>
+            <div id="campos-dinamicos" class="bg-green-50/50 p-5 rounded-2xl border border-green-100 space-y-4"></div>
 
             <div class="grid grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Facultad</label>
-                    <select id="facultad" class="mt-1 block w-full rounded-md border-gray-300 p-3 bg-gray-50 border">
-                        <option>Ingeniería</option><option>Educación</option><option>Ciencias de la Salud</option>
-                        <option>Ciencias Básicas</option><option>Ciencias Humanas</option>
+                    <label class="block text-xs font-bold text-gray-500 uppercase">Facultad</label>
+                    <select id="facultad" class="mt-1 w-full rounded-lg border-gray-300 p-3 bg-gray-50 border outline-none">
+                        <option>Ingeniería</option>
+                        <option>Educación</option>
+                        <option>Ciencias de la Salud</option>
+                        <option>Ciencias Básicas</option>
+                        <option>Ciencias Humanas</option>
+                        <option>Economía y Administración</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Año</label>
-                    <input type="number" id="anio" value="2024" class="mt-1 block w-full rounded-md border-gray-300 p-3 bg-gray-50 border">
+                    <label class="block text-xs font-bold text-gray-500 uppercase">Año</label>
+                    <input type="number" id="anio" value="2024" class="mt-1 w-full rounded-lg border-gray-300 p-3 bg-gray-50 border outline-none">
                 </div>
             </div>
 
-            <button type="submit" id="submit-btn" class="w-full bg-green-800 text-white font-black py-4 rounded-xl hover:bg-green-900 transition-all shadow-lg uppercase tracking-widest">
+            <button type="submit" id="submit-btn" class="w-full bg-green-800 text-white font-black py-5 rounded-2xl shadow-xl hover:shadow-green-200 transition-all uppercase tracking-widest">
                 Guardar Registro
             </button>
         </form>
+
+        <p class="text-center text-[10px] text-gray-300 font-bold uppercase tracking-[0.3em]">
+            Universidad del Quindío • 2024
+        </p>
     </div>
 </body>
 </html>
