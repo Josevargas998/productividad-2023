@@ -6,10 +6,7 @@
     <title>Sistema Productividad UQ 2024</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    const CONTRASEÑAS = {
-    'JOSE': 'jose2024',  // Cambia aquí
-    'LINA': 'lina2024'   // Cambia aquí
-};
+    
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
@@ -32,8 +29,30 @@
 
         let rolActual = ''; 
 
-        // --- NAVEGACIÓN ---
-        window.iniciarSesion = (rol) => {
+        // CONTRASEÑAS (Cambiar estas contraseñas por las que desees)
+        const CONTRASEÑAS = {
+            'JOSE': 'jose2026',  // Cambia esta contraseña
+            'LINA': 'lina2026'   // Cambia esta contraseña
+        };
+
+        // --- NAVEGACIÓN CON CONTRASEÑA ---
+        window.intentarLogin = (rol) => {
+            const password = document.getElementById(`password-${rol.toLowerCase()}`).value;
+            
+            if (!password) {
+                alert("⚠️ Por favor ingrese la contraseña");
+                return;
+            }
+            
+            if (password === CONTRASEÑAS[rol]) {
+                iniciarSesion(rol);
+            } else {
+                alert("❌ Contraseña incorrecta");
+                document.getElementById(`password-${rol.toLowerCase()}`).value = '';
+            }
+        };
+
+        function iniciarSesion(rol) {
             rolActual = rol;
             document.getElementById('pantalla-login').classList.add('hidden');
             
@@ -47,7 +66,7 @@
                 document.getElementById('header-bg').classList.add('bg-blue-900');
                 cargarPendientesLina();
             }
-        };
+        }
 
         // --- LÓGICA JOSÉ: CAMPOS DINÁMICOS POR CATEGORÍA ---
         window.cambiarCategoria = () => {
@@ -285,17 +304,47 @@
     <!-- LOGIN -->
     <div id="pantalla-login" class="flex-1 flex items-center justify-center p-4">
         <div class="bg-white p-10 rounded-2xl shadow-2xl text-center max-w-md w-full">
-            <h2 class="text-2xl font-bold text-gray-700 mb-8">Seleccione su Perfil</h2>
+            <div class="mb-8">
+                <div class="text-4xl mb-3">🔐</div>
+                <h2 class="text-2xl font-bold text-gray-700">Acceso al Sistema</h2>
+                <p class="text-xs text-gray-500 mt-2">Universidad del Quindío - Control de Productividad</p>
+            </div>
             
-            <button onclick="iniciarSesion('JOSE')" class="w-full bg-[#003d2b] hover:bg-green-900 text-white p-4 rounded-xl mb-4 transition-transform hover:scale-105">
-                <div class="font-black text-lg">SOY JOSÉ</div>
-                <div class="text-xs opacity-80">Radicación de Solicitudes</div>
-            </button>
+            <!-- Login José -->
+            <div class="bg-green-50 p-5 rounded-xl mb-4 border-2 border-green-200">
+                <div class="font-black text-lg text-green-800 mb-3">👤 JOSÉ - Radicación</div>
+                <input 
+                    type="password" 
+                    id="password-jose" 
+                    placeholder="Contraseña" 
+                    class="w-full p-3 border-2 border-green-300 rounded-lg mb-3 focus:outline-none focus:border-green-600"
+                    onkeypress="if(event.key==='Enter') intentarLogin('JOSE')"
+                >
+                <button 
+                    onclick="intentarLogin('JOSE')" 
+                    class="w-full bg-[#003d2b] hover:bg-green-900 text-white p-3 rounded-lg font-bold transition-transform hover:scale-105"
+                >
+                    INGRESAR
+                </button>
+            </div>
 
-            <button onclick="iniciarSesion('LINA')" class="w-full bg-blue-800 hover:bg-blue-900 text-white p-4 rounded-xl transition-transform hover:scale-105">
-                <div class="font-black text-lg">SOY LINA</div>
-                <div class="text-xs opacity-80">Evaluación CIARP y Puntos</div>
-            </button>
+            <!-- Login Lina -->
+            <div class="bg-blue-50 p-5 rounded-xl border-2 border-blue-200">
+                <div class="font-black text-lg text-blue-800 mb-3">👤 LINA - Evaluación CIARP</div>
+                <input 
+                    type="password" 
+                    id="password-lina" 
+                    placeholder="Contraseña" 
+                    class="w-full p-3 border-2 border-blue-300 rounded-lg mb-3 focus:outline-none focus:border-blue-600"
+                    onkeypress="if(event.key==='Enter') intentarLogin('LINA')"
+                >
+                <button 
+                    onclick="intentarLogin('LINA')" 
+                    class="w-full bg-blue-800 hover:bg-blue-900 text-white p-3 rounded-lg font-bold transition-transform hover:scale-105"
+                >
+                    INGRESAR
+                </button>
+            </div>
         </div>
     </div>
 
@@ -510,4 +559,3 @@
 
 </body>
 </html>
-
