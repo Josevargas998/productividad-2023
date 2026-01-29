@@ -3,16 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Productividad UQ 2023</title>
+    <title>Productividad UQ 2024</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
-        // CONFIGURACIÓN FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyBbqMf8ZOmqmbGTmr2tr8nziyUWKSE6OWg",
             authDomain: "uniquindio-produccion.firebaseapp.com",
@@ -26,43 +23,36 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        // URL DE TU GOOGLE DRIVE
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbw0XDX3udmN5vzMu1tGAtudn-_v03j9gQj1jgc6h68DH-9Q6E6z5RVXbKHCRsKSIz8gCg/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbyKD0JyxaTKS6u3WXnJYgZl3aR5XEJ3v7DlbDOBBqk8KG4FYT5Wc23AqPIZf0vWAVND7g/exec";
 
-        // LÓGICA DE CAMPOS DINÁMICOS
         window.cambiarCategoria = () => {
             const cat = document.getElementById('categoria').value;
             const container = document.getElementById('campos-dinamicos');
             let html = '';
-            const inputStyle = "w-full border-2 p-2 rounded-lg text-sm outline-none focus:border-green-600 bg-white";
-            const labelStyle = "block text-[10px] font-bold text-gray-500 uppercase mb-1";
+            const inputStyle = "w-full border-2 p-3 rounded-xl text-sm outline-none focus:border-green-600 bg-white font-semibold";
+            const labelStyle = "block text-[10px] font-black text-gray-400 uppercase mb-1";
 
             if (cat.includes('Rev')) {
-                html = `<div class="grid grid-cols-2 gap-4">
-                    <div><label class="${labelStyle}">ISSN</label><input type="text" id="extra_id" class="${inputStyle}"></div>
-                    <div><label class="${labelStyle}">Nombre Revista</label><input type="text" id="extra_nombre" class="${inputStyle}"></div>
-                </div>`;
-            } else if (cat.includes('Libro')) {
-                html = `<div class="grid grid-cols-2 gap-4">
-                    <div><label class="${labelStyle}">ISBN</label><input type="text" id="extra_id" class="${inputStyle}"></div>
-                    <div><label class="${labelStyle}">Año Publicación</label><input type="text" id="extra_nombre" class="${inputStyle}"></div>
+                html = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label class="${labelStyle}">ISSN / DOI</label><input type="text" id="extra_id" placeholder="Ej: 0120-3754" class="${inputStyle}"></div>
+                    <div><label class="${labelStyle}">Modalidad (Full Paper, Review)</label><input type="text" id="modalidad" class="${inputStyle}"></div>
                 </div>`;
             } else if (cat === 'Ponencias') {
-                html = `<div class="grid grid-cols-2 gap-4">
-                    <div><label class="${labelStyle}">Evento</label><input type="text" id="extra_nombre" class="${inputStyle}"></div>
-                    <div><label class="${labelStyle}">Lugar/Fecha</label><input type="text" id="extra_id" class="${inputStyle}"></div>
+                html = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label class="${labelStyle}">Nombre del Evento</label><input type="text" id="extra_id" class="${inputStyle}"></div>
+                    <div><label class="${labelStyle}">Tipo de Evento (Nacional/Internac.)</label><input type="text" id="modalidad" class="${inputStyle}"></div>
                 </div>`;
             } else {
-                html = `<div><label class="${labelStyle}">Observaciones</label><input type="text" id="extra_nombre" class="${inputStyle}"></div>`;
+                html = `<div><label class="${labelStyle}">Dato Adicional (ISBN/Registro)</label><input type="text" id="extra_id" class="${inputStyle}"></div>
+                        <input type="hidden" id="modalidad" value="N/A">`;
             }
             container.innerHTML = html;
         };
 
-        // GUARDAR REGISTRO
         document.getElementById('product-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn-save');
-            btn.innerText = "GUARDANDO EN DRIVE Y FIREBASE...";
+            btn.innerText = "SINCRONIZANDO CON DRIVE...";
             btn.disabled = true;
 
             const registro = {
@@ -72,133 +62,116 @@
                 titulo: document.getElementById('titulo').value,
                 autor: document.getElementById('autor').value,
                 documento: document.getElementById('documento').value,
+                escolaridad: document.getElementById('escolaridad').value,
+                dedicacion: document.getElementById('dedicacion').value,
                 facultad: document.getElementById('facultad').value,
                 programa: document.getElementById('programa').value,
-                extra_id: document.getElementById('extra_id')?.value || 'N/A',
-                extra_nombre: document.getElementById('extra_nombre')?.value || 'N/A'
+                pais: document.getElementById('pais').value,
+                modalidad: document.getElementById('modalidad')?.value || 'N/A',
+                extra_id: document.getElementById('extra_id')?.value || 'N/A'
             };
 
             try {
-                // 1. Guardar en Firebase (Base de datos principal)
-                await addDoc(collection(db, 'artifacts', 'uniquindio-produccion', 'public', 'data', 'registros_2023'), {
-                    ...registro, 
-                    fecha_sistema: serverTimestamp()
-                });
-                
-                // 2. Guardar en Google Drive (Copia en Excel Online)
-                await fetch(urlAppsScript, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify(registro)
-                });
-
-                alert("✅ ÉXITO: Guardado en Firebase y en tu Google Sheet (Hoja: " + registro.categoria_pestana + ")");
+                await addDoc(collection(db, 'artifacts', 'uniquindio-produccion', 'public', 'data', 'registros_2024'), { ...registro, fecha: serverTimestamp() });
+                await fetch(urlAppsScript, { method: 'POST', mode: 'no-cors', body: JSON.stringify(registro) });
+                alert("✅ REGISTRO EXITOSO: Guardado en Firebase y en la pestaña " + registro.categoria_pestana + " de tu Drive.");
                 e.target.reset();
                 cambiarCategoria();
             } catch (err) {
-                alert("❌ Error al guardar. Verifica tu conexión.");
-                console.error(err);
+                alert("❌ Error de red.");
             } finally {
                 btn.innerText = "GUARDAR REGISTRO";
                 btn.disabled = false;
             }
         });
 
-        // DESCARGAR EXCEL FINAL ORGANIZADO
-        window.descargarExcel = async () => {
-            const q = query(collection(db, 'artifacts', 'uniquindio-produccion', 'public', 'data', 'registros_2023'));
-            const snap = await getDocs(q);
-            const wb = XLSX.utils.book_new();
-            const hojas = {};
-
-            snap.forEach(doc => {
-                const d = doc.data();
-                if (!hojas[d.categoria_pestana]) hojas[d.categoria_pestana] = [];
-                hojas[d.categoria_pestana].push({
-                    "AÑO": d.anio, "SEMESTRE": d.semestre, "TÍTULO": d.titulo, 
-                    "AUTOR": d.autor, "DOCUMENTO": d.documento, "PROGRAMA": d.programa, 
-                    "FACULTAD": d.facultad, "ID (ISSN/ISBN)": d.extra_id, "DETALLE": d.extra_nombre
-                });
-            });
-
-            Object.keys(hojas).forEach(nombre => {
-                const ws = XLSX.utils.json_to_sheet(hojas[nombre]);
-                XLSX.utils.book_append_sheet(wb, ws, nombre);
-            });
-            XLSX.writeFile(wb, "Compilado_Oficial_UQ_2023.xlsx");
-        };
-
         signInAnonymously(auth);
         window.onload = cambiarCategoria;
     </script>
 </head>
-<body class="bg-slate-100 p-4 font-sans text-slate-800">
-    <div class="max-w-3xl mx-auto shadow-2xl rounded-3xl overflow-hidden">
-        <div class="bg-[#003d2b] p-8 text-white border-b-4 border-yellow-400">
-            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div class="text-center md:text-left">
-                    <h1 class="text-2xl font-black tracking-tight">PRODUCTIVIDAD UQ 2023</h1>
-                    <p class="text-[10px] text-green-300 font-bold uppercase tracking-widest">Respaldo Automático en Drive Activado</p>
-                </div>
-                <button onclick="descargarExcel()" class="bg-yellow-400 text-[#003d2b] font-black px-5 py-2 rounded-full text-xs hover:bg-white transition-all shadow-lg">
-                    📥 DESCARGAR COMPILADO
-                </button>
+<body class="bg-slate-200 p-4 md:p-8 font-sans">
+    <div class="max-w-5xl mx-auto bg-white shadow-2xl rounded-[2.5rem] overflow-hidden border-t-[14px] border-[#003d2b]">
+        <div class="p-10 bg-slate-50 border-b flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-black text-[#003d2b] tracking-tighter">PRODUCTIVIDAD UQ</h1>
+                <p class="text-[10px] font-bold text-green-600 uppercase tracking-[0.3em]">Oficina de Asuntos Profesorales - 2024</p>
+            </div>
+            <div class="text-right hidden md:block">
+                <span class="text-[10px] font-black text-gray-300 block">SISTEMA DE RESPALDO</span>
+                <span class="text-xs font-bold text-gray-500">Google Drive Cloud v2.0</span>
             </div>
         </div>
 
-        <form id="product-form" class="bg-white p-8 space-y-6">
-            <div class="bg-green-50 p-5 rounded-2xl border border-green-100">
-                <label class="block text-[10px] font-black text-green-700 mb-2 uppercase">1. Seleccione Pestaña de Destino</label>
-                <select id="categoria" onchange="cambiarCategoria()" class="w-full p-3 rounded-xl border-2 border-green-600 font-bold text-green-900 outline-none">
-                    <option value="Publicac. Rev. Index">Publicac. Rev. Index</option>
-                    <option value="Rev. No Index">Revistas No Indexadas</option>
-                    <option value="Libro Prod Investigación">Libro Prod. Investigación</option>
-                    <option value="Libro Texto">Libro Texto</option>
-                    <option value="Libro Ensayo">Libro Ensayo</option>
-                    <option value="Software">Software</option>
-                    <option value="Ponencias">Ponencias</option>
-                    <option value="Direc. Tesis">Dirección de Tesis</option>
-                    <option value="Obra Artistica">Obra Artística</option>
-                </select>
+        <form id="product-form" class="p-10 space-y-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-2">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">1. Clasificación del Producto (Pestaña Drive)</label>
+                    <select id="categoria" onchange="cambiarCategoria()" class="w-full p-4 bg-green-50 border-2 border-green-600 rounded-2xl font-black text-green-900 outline-none shadow-sm">
+                        <option value="Publicac. Rev. Index">Artículos Revistas Indexadas</option>
+                        <option value="Rev. No Index">Artículos Revistas No Indexadas</option>
+                        <option value="Libro Prod Investigación">Libros de Investigación</option>
+                        <option value="Ponencias">Ponencias y Eventos</option>
+                        <option value="Software">Software y Aplicaciones</option>
+                        <option value="Obra Artistica">Producción Audiovisual / Artística</option>
+                        <option value="Direc. Tesis">Dirección de Tesis (Postgrado)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">País / Sede</label>
+                    <input type="text" id="pais" value="Colombia" class="w-full p-4 border-2 rounded-2xl outline-none focus:border-green-600 font-bold">
+                </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div class="space-y-4">
-                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Título del Producto</label>
-                    <input type="text" id="titulo" required class="w-full border-b-2 p-2 outline-none focus:border-green-600 font-medium"></div>
-                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Nombre del Docente</label>
-                    <input type="text" id="autor" required class="w-full border-b-2 p-2 outline-none focus:border-green-600 font-medium"></div>
-                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Cédula / Documento</label>
-                    <input type="text" id="documento" required class="w-full border-b-2 p-2 outline-none focus:border-green-600 font-medium"></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div class="space-y-6">
+                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Título Completo del Trabajo</label>
+                    <input type="text" id="titulo" required class="w-full border-b-4 border-slate-100 p-2 outline-none focus:border-green-600 font-bold text-xl transition-all"></div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Nombre del Docente</label>
+                        <input type="text" id="autor" required class="w-full border-b-2 p-2 outline-none focus:border-green-600 font-semibold"></div>
+                        <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Documento ID</label>
+                        <input type="text" id="documento" required class="w-full border-b-2 p-2 outline-none focus:border-green-600 font-semibold"></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Escolaridad</label>
+                        <select id="escolaridad" class="w-full border-b-2 p-2 outline-none font-bold">
+                            <option>Doctorado</option><option>Maestría</option><option>Especialización</option><option>Pregrado</option>
+                        </select></div>
+                        <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Dedicación</label>
+                        <select id="dedicacion" class="w-full border-b-2 p-2 outline-none font-bold">
+                            <option>TC (Tiempo Completo)</option><option>MT (Medio Tiempo)</option><option>Catedrático</option>
+                        </select></div>
+                    </div>
                 </div>
-                <div class="space-y-4">
+
+                <div class="space-y-6">
                     <div class="flex gap-4">
                         <div class="w-1/2"><label class="block text-[10px] font-bold text-slate-400 uppercase">Año</label>
-                        <input type="number" id="anio" value="2023" class="w-full border-b-2 p-2 outline-none"></div>
+                        <input type="number" id="anio" value="2024" class="w-full border-b-2 p-2 outline-none"></div>
                         <div class="w-1/2"><label class="block text-[10px] font-bold text-slate-400 uppercase">Semestre</label>
-                        <select id="semestre" class="w-full border-b-2 p-2 outline-none"><option>I</option><option>II</option></select></div>
+                        <select id="semestre" class="w-full border-b-2 p-2 outline-none font-bold"><option>I</option><option>II</option></select></div>
                     </div>
+                    
                     <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Facultad</label>
-                    <select id="facultad" class="w-full border-b-2 p-2 outline-none text-sm">
+                    <select id="facultad" class="w-full border-b-2 p-2 outline-none font-bold text-sm">
                         <option>Ciencias Básicas y Tecnologías</option><option>Ingeniería</option><option>Ciencias de la Salud</option>
-                        <option>Ciencias de la Educación</option><option>Ciencias Humanas y Bellas Artes</option>
-                        <option>Ciencias Económicas y Administrativas</option><option>Ciencias Agroindustriales</option>
+                        <option>Ciencias de la Educación</option><option>Ciencias Económicas, Adm. y Contables</option>
+                        <option>Ciencias Agroindustriales</option><option>Ciencias Humanas y Bellas Artes</option>
                     </select></div>
-                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Programa</label>
-                    <input type="text" id="programa" required placeholder="Ej: Física" class="w-full border-b-2 p-2 outline-none"></div>
+                    
+                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Programa Académico</label>
+                    <input type="text" id="programa" required class="w-full border-b-2 p-2 outline-none font-bold"></div>
                 </div>
             </div>
 
-            <div id="campos-dinamicos" class="bg-slate-50 p-6 rounded-2xl border-2 border-dashed border-slate-200 transition-all"></div>
+            <div id="campos-dinamicos" class="bg-slate-50 p-8 rounded-[2rem] border-2 border-dashed border-slate-200 min-h-[100px] flex flex-col justify-center"></div>
 
-            <button type="submit" id="btn-save" class="w-full bg-[#003d2b] text-white font-black py-5 rounded-2xl shadow-xl hover:bg-black transition-all transform hover:scale-[1.01] active:scale-95">
-                GUARDAR REGISTRO
+            <button type="submit" id="btn-save" class="w-full bg-[#003d2b] text-white font-black py-6 rounded-3xl shadow-2xl hover:bg-black transition-all transform hover:-translate-y-1 active:scale-95 text-lg">
+                GUARDAR Y SINCRONIZAR CON DRIVE
             </button>
         </form>
-        
-        <div class="bg-white p-4 text-center">
-            <p class="text-[9px] text-slate-300 font-bold uppercase tracking-widest">Oficina de Asuntos Profesorales - Universidad del Quindío</p>
-        </div>
     </div>
 </body>
 </html>
