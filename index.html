@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Productividad UQ 2024 - MEJORADO</title>
+    <title>Sistema Productividad UQ 2024 - CORREGIDO</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy, where } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
         const firebaseConfig = {
@@ -26,7 +26,7 @@
         const auth = getAuth(app);
         
         // URL DE TU APPS SCRIPT
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbzh5VhNXK-_iPa07zN-olQyUJ46zPHOS8aaIJp_iN5Vb6hm3t5IcXMiFrB_ram4DFrAYA/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbz7ifRRAkw0ddORpNkRrxmCnhutk5XlgI_7XHOLcheSrniYLnHGCvJ-jX1-wQl4rCQUyg/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
@@ -61,7 +61,7 @@
                 document.getElementById('panel-jose').classList.remove('hidden');
                 document.getElementById('header-title').innerText = "SEGUIMIENTO DE SOLICITUDES (JOSÉ)";
                 document.getElementById('header-bg').classList.add('bg-[#003d2b]');
-                cambiarCategoria(); // Inicializar campos
+                cambiarCategoria();
             } else {
                 document.getElementById('panel-lina').classList.remove('hidden');
                 document.getElementById('header-title').innerText = "COMPILADO Y LIQUIDACIÓN (LINA)";
@@ -78,7 +78,6 @@
             const labelClass = "block text-xs font-bold text-gray-500 uppercase mb-1";
             let html = '';
 
-            // JOSÉ SOLO VE SUS CAMPOS ESPECÍFICOS
             if (cat === "Artículos Indexados" || cat === "Artículos No Indexados") {
                 html = `<div class="grid grid-cols-2 gap-4">
                     <div><label class="${labelClass}">Nombre del Artículo</label><input type="text" id="nombre_articulo" class="${inputClass}"></div>
@@ -186,8 +185,11 @@
 
             const categoria = document.getElementById('categoria').value;
             
-            // JOSÉ SOLO ENVÍA SUS DATOS
             const registro = {
+                // METADATOS
+                tipo_registro: "JOSE",  // 🔥 IMPORTANTE: Identificador para Apps Script
+                timestamp: new Date().toISOString(),
+                
                 // DATOS BÁSICOS (JOSÉ)
                 anio: "2024",
                 semestre: document.getElementById('semestre').value,
@@ -220,32 +222,40 @@
                 universidad_otorga: document.getElementById('universidad_otorga')?.value || '',
                 tipo_trabajo: document.getElementById('tipo_trabajo')?.value || '',
                 categoria_actual: document.getElementById('categoria_actual')?.value || '',
-                categoria_solicitada: document.getElementById('categoria_solicitada')?.value || '',
-                
-                // NOTA: JOSÉ NO ENVÍA NINGÚN CAMPO DE LINA
+                categoria_solicitada: document.getElementById('categoria_solicitada')?.value || ''
             };
 
             try {
-                // Guardar en Firebase
-                await addDoc(collection(db, 'registros_2024'), registro);
-                console.log('✅ Guardado en Firebase');
+                console.log("📤 Enviando a Firebase:", registro);
                 
-                // Sincronizar con Google Sheets (SOLO datos José)
+                // Guardar en Firebase
+                const docRef = await addDoc(collection(db, 'registros_2024'), registro);
+                console.log('✅ Guardado en Firebase con ID:', docRef.id);
+                
+                // Sincronizar con Google Sheets
+                console.log("📤 Sincronizando con Google Sheets...");
                 const response = await fetch(urlAppsScript, {
                     method: 'POST',
                     body: JSON.stringify(registro),
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'text/plain' }  // 🔥 CAMBIO IMPORTANTE
                 });
                 
-                const result = await response.json();
-                console.log('✅ Google Sheets:', result);
+                const textResult = await response.text();
+                console.log('📥 Respuesta de Sheets:', textResult);
                 
-                alert("✅ Solicitud registrada en SEGUIMIENTO");
+                try {
+                    const jsonResult = JSON.parse(textResult);
+                    console.log('✅ Google Sheets:', jsonResult);
+                } catch (e) {
+                    console.warn('⚠️ Respuesta no es JSON puro, pero puede ser exitosa');
+                }
+                
+                alert("✅ Solicitud registrada correctamente en SEGUIMIENTO");
                 e.target.reset();
                 cambiarCategoria();
                 
             } catch (err) { 
-                console.error('❌ Error:', err);
+                console.error('❌ Error completo:', err);
                 alert("❌ Error: " + err.message); 
             } finally { 
                 btn.innerText = "REGISTRAR EN SEGUIMIENTO"; 
@@ -258,47 +268,52 @@
             const tbody = document.getElementById('tabla-pendientes');
             tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4 text-gray-500">Cargando...</td></tr>';
             
-            const q = query(collection(db, 'registros_2024'), orderBy('fecha_recibido', 'desc'));
-            const snapshot = await getDocs(q);
-            
-            tbody.innerHTML = '';
-            
-            if (snapshot.empty) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4 text-gray-400">No hay solicitudes pendientes</td></tr>';
-                return;
-            }
-            
-            snapshot.forEach((docSnap) => {
-                const d = docSnap.data();
-                const tr = document.createElement('tr');
-                tr.className = "border-b hover:bg-blue-50 cursor-pointer transition";
-                tr.onclick = () => abrirModalEvaluacion(docSnap.id, d);
+            try {
+                const q = query(collection(db, 'registros_2024'), orderBy('fecha_recibido', 'desc'));
+                const snapshot = await getDocs(q);
                 
-                let estadoColor = d.estado_ciarp === "Aprobado" ? "bg-green-100 text-green-800" : 
-                                 d.estado_ciarp === "Negado" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800";
+                tbody.innerHTML = '';
                 
-                let puntajeColor = d.puntaje_asignado > 0 ? "bg-green-600 text-white" : "bg-gray-200 text-gray-700";
+                if (snapshot.empty) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4 text-gray-400">No hay solicitudes pendientes</td></tr>';
+                    return;
+                }
+                
+                snapshot.forEach((docSnap) => {
+                    const d = docSnap.data();
+                    const tr = document.createElement('tr');
+                    tr.className = "border-b hover:bg-blue-50 cursor-pointer transition";
+                    tr.onclick = () => abrirModalEvaluacion(docSnap.id, d);
+                    
+                    let estadoColor = d.estado_ciarp === "Aprobado" ? "bg-green-100 text-green-800" : 
+                                     d.estado_ciarp === "Negado" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800";
+                    
+                    let puntajeColor = (d.puntaje_asignado || 0) > 0 ? "bg-green-600 text-white" : "bg-gray-200 text-gray-700";
 
-                tr.innerHTML = `
-                    <td class="p-3 text-sm font-mono">${docSnap.id.substring(0, 8)}</td>
-                    <td class="p-3 text-sm">${d.semestre || ''}-${d.anio || '2024'}</td>
-                    <td class="p-3 text-sm font-bold">${d.autor}</td>
-                    <td class="p-3 text-sm">${d.titulo_producto}</td>
-                    <td class="p-3 text-sm">${d.categoria}</td>
-                    <td class="p-3 text-sm"><span class="px-2 py-1 rounded text-xs font-bold ${estadoColor}">${d.estado_ciarp || 'Pendiente'}</span></td>
-                    <td class="p-3 text-sm text-center">
-                        <span class="px-3 py-1 rounded-full text-sm font-bold ${puntajeColor}">
-                            ${d.puntaje_asignado > 0 ? d.puntaje_asignado : 'Sin evaluar'}
-                        </span>
-                    </td>
-                    <td class="p-3 text-sm text-center">
-                        <button class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">
-                            Evaluar
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
+                    tr.innerHTML = `
+                        <td class="p-3 text-sm font-mono">${docSnap.id.substring(0, 8)}</td>
+                        <td class="p-3 text-sm">${d.semestre || ''}-${d.anio || '2024'}</td>
+                        <td class="p-3 text-sm font-bold">${d.autor || ''}</td>
+                        <td class="p-3 text-sm">${d.titulo_producto || ''}</td>
+                        <td class="p-3 text-sm">${d.categoria || ''}</td>
+                        <td class="p-3 text-sm"><span class="px-2 py-1 rounded text-xs font-bold ${estadoColor}">${d.estado_ciarp || 'Pendiente'}</span></td>
+                        <td class="p-3 text-sm text-center">
+                            <span class="px-3 py-1 rounded-full text-sm font-bold ${puntajeColor}">
+                                ${(d.puntaje_asignado || 0) > 0 ? d.puntaje_asignado : 'Sin evaluar'}
+                            </span>
+                        </td>
+                        <td class="p-3 text-sm text-center">
+                            <button class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">
+                                Evaluar
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('❌ Error cargando registros:', error);
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4 text-red-500">Error al cargar datos</td></tr>';
+            }
         }
 
         // LINA: ABRIR MODAL CON TODA LA INFORMACIÓN
@@ -308,30 +323,26 @@
             
             // ========== SECCIÓN JOSÉ (SOLO LECTURA) ==========
             document.getElementById('info-id').innerText = id.substring(0, 8);
-            document.getElementById('info-categoria').innerText = data.categoria;
-            document.getElementById('info-titulo').innerText = data.titulo_producto;
-            document.getElementById('info-autor').innerText = data.autor;
-            document.getElementById('info-programa').innerText = data.programa;
-            document.getElementById('info-fecha').innerText = data.fecha_recibido;
-            document.getElementById('info-doc').innerText = data.doc_completa;
+            document.getElementById('info-categoria').innerText = data.categoria || '';
+            document.getElementById('info-titulo').innerText = data.titulo_producto || '';
+            document.getElementById('info-autor').innerText = data.autor || '';
+            document.getElementById('info-programa').innerText = data.programa || '';
+            document.getElementById('info-fecha').innerText = data.fecha_recibido || '';
+            document.getElementById('info-doc').innerText = data.doc_completa || '';
             document.getElementById('info-estado-jose').innerText = data.estado_ciarp || 'Pendiente';
             document.getElementById('info-obs-jose').innerText = data.observaciones_jose || 'Sin observaciones';
             
-            // Mostrar campos específicos de José
             mostrarCamposJoseReadonly(data);
             
             // ========== SECCIÓN LINA (EDITABLES) ==========
-            // Datos del docente
             document.getElementById('edit-documento').value = data.documento_id || "";
             document.getElementById('edit-escolaridad').value = data.escolaridad || "";
             document.getElementById('edit-categoria-doc').value = data.categoria_docente || "";
             document.getElementById('edit-dedicacion').value = data.dedicacion || "";
             document.getElementById('edit-facultad').value = data.facultad || "";
             
-            // Campos específicos según categoría
             cargarCamposLinaEspecificos(data);
             
-            // Evaluación
             document.getElementById('edit-puntaje-eval1').value = data.puntaje_eval1 || 0;
             document.getElementById('edit-puntaje-eval2').value = data.puntaje_eval2 || 0;
             document.getElementById('edit-puntaje-asignado').value = data.puntaje_asignado || 0;
@@ -478,77 +489,94 @@
             document.getElementById('puntaje-promedio-display').innerText = promedio.toFixed(2);
         };
 
-        // LINA: GUARDAR COMPILADO COMPLETO
+        // LINA: GUARDAR COMPILADO COMPLETO - 🔥 CORREGIDO
         window.guardarEvaluacion = async () => {
-            if(!idRegistroActual) return;
+            if(!idRegistroActual) {
+                alert("❌ No hay registro seleccionado");
+                return;
+            }
             
             const btn = document.getElementById('btn-guardar-lina');
             btn.innerText = "GUARDANDO...";
             btn.disabled = true;
             
-            // Obtener datos originales para título y autor
-            const docRef = doc(db, 'registros_2024', idRegistroActual);
-            const docSnap = await getDocs(query(collection(db, 'registros_2024'), where("__name__", "==", idRegistroActual)));
-            const dataOriginal = docSnap.docs[0]?.data() || {};
-            
-            const eval1 = parseFloat(document.getElementById('edit-puntaje-eval1').value) || 0;
-            const eval2 = parseFloat(document.getElementById('edit-puntaje-eval2').value) || 0;
-            const promedio = (eval1 + eval2) / 2;
-            
-            // LINA ENVÍA TODOS LOS DATOS (INCLUYENDO LOS DE JOSÉ PARA IDENTIFICACIÓN)
-            const actualizacion = {
-                // Datos de José (para identificación)
-                titulo_producto: dataOriginal.titulo_producto || "",
-                autor: dataOriginal.autor || "",
-                categoria: dataOriginal.categoria || "",
-                
-                // Datos de Lina (compilado)
-                documento_id: document.getElementById('edit-documento').value,
-                escolaridad: document.getElementById('edit-escolaridad').value,
-                categoria_docente: document.getElementById('edit-categoria-doc').value,
-                dedicacion: document.getElementById('edit-dedicacion').value,
-                facultad: document.getElementById('edit-facultad').value,
-                puntaje_eval1: eval1,
-                puntaje_eval2: eval2,
-                puntaje_promedio: promedio,
-                puntaje_asignado: parseFloat(document.getElementById('edit-puntaje-asignado').value) || 0,
-                acta_ciarp: document.getElementById('edit-acta').value,
-                resolucion: document.getElementById('edit-resolucion').value,
-                observaciones_lina: document.getElementById('edit-obs-lina').value,
-                
-                // Campos específicos según categoría
-                modalidad: document.getElementById('edit-modalidad')?.value || "",
-                tipo: document.getElementById('edit-tipo')?.value || "",
-                pais: document.getElementById('edit-pais')?.value || "",
-                issn: document.getElementById('edit-issn')?.value || "",
-                clasificacion_publindex: document.getElementById('edit-clasificacion')?.value || "",
-                editorial: document.getElementById('edit-editorial')?.value || "",
-                anio_publicacion: document.getElementById('edit-anio-pub')?.value || "",
-                isbn: document.getElementById('edit-isbn')?.value || "",
-                num_autores: parseInt(document.getElementById('edit-num-autores')?.value) || 0,
-                universidades_coautores: document.getElementById('edit-universidades')?.value || ""
-            };
-
             try {
+                // 🔥 CORRECCIÓN: Obtener datos originales correctamente
+                const docRef = doc(db, 'registros_2024', idRegistroActual);
+                const docSnap = await getDoc(docRef);
+                
+                if (!docSnap.exists()) {
+                    throw new Error("Registro no encontrado");
+                }
+                
+                const dataOriginal = docSnap.data();
+                console.log("📋 Datos originales:", dataOriginal);
+                
+                const eval1 = parseFloat(document.getElementById('edit-puntaje-eval1').value) || 0;
+                const eval2 = parseFloat(document.getElementById('edit-puntaje-eval2').value) || 0;
+                const promedio = (eval1 + eval2) / 2;
+                
+                // 🔥 CORRECCIÓN: Agregar tipo_registro para identificar a Lina
+                const actualizacion = {
+                    // METADATOS
+                    tipo_registro: "LINA",  // 🔥 IMPORTANTE
+                    timestamp_lina: new Date().toISOString(),
+                    
+                    // Datos de José (para identificación en Sheets)
+                    titulo_producto: dataOriginal.titulo_producto || "",
+                    autor: dataOriginal.autor || "",
+                    categoria: dataOriginal.categoria || "",
+                    
+                    // Datos de Lina
+                    documento_id: document.getElementById('edit-documento').value,
+                    escolaridad: document.getElementById('edit-escolaridad').value,
+                    categoria_docente: document.getElementById('edit-categoria-doc').value,
+                    dedicacion: document.getElementById('edit-dedicacion').value,
+                    facultad: document.getElementById('edit-facultad').value,
+                    puntaje_eval1: eval1,
+                    puntaje_eval2: eval2,
+                    puntaje_promedio: promedio,  // 🔥 GUARDAR PROMEDIO
+                    puntaje_asignado: parseFloat(document.getElementById('edit-puntaje-asignado').value) || 0,
+                    acta_ciarp: document.getElementById('edit-acta').value,
+                    resolucion: document.getElementById('edit-resolucion').value,
+                    observaciones_lina: document.getElementById('edit-obs-lina').value,
+                    
+                    // Campos específicos
+                    modalidad: document.getElementById('edit-modalidad')?.value || "",
+                    tipo: document.getElementById('edit-tipo')?.value || "",
+                    pais: document.getElementById('edit-pais')?.value || "",
+                    issn: document.getElementById('edit-issn')?.value || "",
+                    clasificacion_publindex: document.getElementById('edit-clasificacion')?.value || "",
+                    editorial: document.getElementById('edit-editorial')?.value || "",
+                    anio_publicacion: document.getElementById('edit-anio-pub')?.value || "",
+                    isbn: document.getElementById('edit-isbn')?.value || "",
+                    num_autores: parseInt(document.getElementById('edit-num-autores')?.value) || 0,
+                    universidades_coautores: document.getElementById('edit-universidades')?.value || ""
+                };
+
+                console.log("📤 Actualizando Firebase con:", actualizacion);
+                
                 // Actualizar en Firebase
                 await updateDoc(docRef, actualizacion);
+                console.log("✅ Firebase actualizado");
                 
-                // Sincronizar con Google Sheets (LINA envía todo)
+                // Sincronizar con Google Sheets
+                console.log("📤 Sincronizando con Sheets...");
                 const response = await fetch(urlAppsScript, {
                     method: 'POST',
                     body: JSON.stringify(actualizacion),
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'text/plain' }
                 });
                 
-                const result = await response.json();
-                console.log('✅ Google Sheets actualizado:', result);
+                const textResult = await response.text();
+                console.log('📥 Respuesta de Sheets:', textResult);
                 
                 alert("✅ Compilado guardado correctamente");
                 cerrarModal();
                 cargarPendientesLina();
                 
             } catch (err) {
-                console.error('❌ Error:', err);
+                console.error('❌ Error completo:', err);
                 alert("❌ Error al guardar: " + err.message);
             } finally {
                 btn.innerText = "💾 GUARDAR EN COMPILADO";
@@ -557,50 +585,56 @@
         };
 
         window.descargarExcel = async () => {
-            const snapshot = await getDocs(collection(db, 'registros_2024'));
-            const datos = [];
-            snapshot.forEach(doc => {
-                const d = doc.data();
-                datos.push({
-                    "ID": doc.id.substring(0, 8),
-                    "Año": d.anio,
-                    "Semestre": d.semestre,
-                    "Categoría": d.categoria,
-                    "Fecha Recibido": d.fecha_recibido,
-                    "Título": d.titulo_producto,
-                    "Autor": d.autor,
-                    "Programa": d.programa,
-                    "Estado CIARP": d.estado_ciarp,
-                    "Doc ID": d.documento_id,
-                    "Escolaridad": d.escolaridad,
-                    "Categoría Docente": d.categoria_docente,
-                    "Dedicación": d.dedicacion,
-                    "Facultad": d.facultad,
-                    "Puntaje Eval 1": d.puntaje_eval1,
-                    "Puntaje Eval 2": d.puntaje_eval2,
-                    "Promedio": d.puntaje_promedio,
-                    "Puntaje Asignado": d.puntaje_asignado,
-                    "Acta CIARP": d.acta_ciarp,
-                    "Resolución": d.resolucion,
-                    "Observaciones Lina": d.observaciones_lina
+            try {
+                const snapshot = await getDocs(collection(db, 'registros_2024'));
+                const datos = [];
+                snapshot.forEach(doc => {
+                    const d = doc.data();
+                    datos.push({
+                        "ID": doc.id.substring(0, 8),
+                        "Año": d.anio || '',
+                        "Semestre": d.semestre || '',
+                        "Categoría": d.categoria || '',
+                        "Fecha Recibido": d.fecha_recibido || '',
+                        "Título": d.titulo_producto || '',
+                        "Autor": d.autor || '',
+                        "Programa": d.programa || '',
+                        "Estado CIARP": d.estado_ciarp || '',
+                        "Doc ID": d.documento_id || '',
+                        "Escolaridad": d.escolaridad || '',
+                        "Categoría Docente": d.categoria_docente || '',
+                        "Dedicación": d.dedicacion || '',
+                        "Facultad": d.facultad || '',
+                        "Puntaje Eval 1": d.puntaje_eval1 || 0,
+                        "Puntaje Eval 2": d.puntaje_eval2 || 0,
+                        "Promedio": d.puntaje_promedio || 0,
+                        "Puntaje Asignado": d.puntaje_asignado || 0,
+                        "Acta CIARP": d.acta_ciarp || '',
+                        "Resolución": d.resolucion || '',
+                        "Observaciones Lina": d.observaciones_lina || ''
+                    });
                 });
-            });
-            
-            const ws = XLSX.utils.json_to_sheet(datos);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Compilado 2024");
-            XLSX.writeFile(wb, `Compilado_Productividad_${new Date().toISOString().split('T')[0]}.xlsx`);
+                
+                const ws = XLSX.utils.json_to_sheet(datos);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Compilado 2024");
+                XLSX.writeFile(wb, `Compilado_Productividad_${new Date().toISOString().split('T')[0]}.xlsx`);
+            } catch (error) {
+                console.error("❌ Error descargando Excel:", error);
+                alert("❌ Error al descargar Excel");
+            }
         };
 
-        // Inicializar Firebase y sistema
+        // Inicializar Firebase
         signInAnonymously(auth).then(() => {
             console.log('✅ Firebase conectado');
         }).catch(err => {
             console.error('❌ Error Firebase:', err);
+            alert("❌ Error conectando con Firebase");
         });
         
         window.onload = () => {
-            console.log('✅ Sistema cargado');
+            console.log('✅ Sistema cargado - VERSIÓN CORREGIDA');
         };
     </script>
 </head>
@@ -609,7 +643,7 @@
     <div id="header-bg" class="text-white p-4 shadow-lg flex justify-between items-center transition-colors">
         <div>
             <h1 id="header-title" class="text-xl font-black tracking-wider">SISTEMA PRODUCTIVIDAD UQ</h1>
-            <p class="text-[10px] opacity-75">Universidad del Quindío - 2024 - VERSIÓN MEJORADA</p>
+            <p class="text-[10px] opacity-75">Universidad del Quindío - 2024 - VERSIÓN CORREGIDA ✅</p>
         </div>
         <button onclick="location.reload()" class="text-xs bg-white/20 px-3 py-1 rounded hover:bg-white/40">Cerrar Sesión</button>
     </div>
@@ -625,7 +659,7 @@
             
             <div class="bg-green-50 p-5 rounded-xl mb-4 border-2 border-green-200">
                 <div class="font-black text-lg text-green-800 mb-3">👤 JOSÉ</div>
-                <p class="text-xs text-gray-600 mb-3">Radicacion</p>
+                <p class="text-xs text-gray-600 mb-3">Radicación y Seguimiento</p>
                 <input type="password" id="password-jose" placeholder="Contraseña" 
                     class="w-full p-3 border-2 border-green-300 rounded-lg mb-3 focus:outline-none focus:border-green-600"
                     onkeypress="if(event.key==='Enter') intentarLogin('JOSE')">
@@ -637,7 +671,7 @@
 
             <div class="bg-blue-50 p-5 rounded-xl border-2 border-blue-200">
                 <div class="font-black text-lg text-blue-800 mb-3">👤 LINA</div>
-                <p class="text-xs text-gray-600 mb-3">Verifica</p>
+                <p class="text-xs text-gray-600 mb-3">Verificación y Compilado</p>
                 <input type="password" id="password-lina" placeholder="Contraseña" 
                     class="w-full p-3 border-2 border-blue-300 rounded-lg mb-3 focus:outline-none focus:border-blue-600"
                     onkeypress="if(event.key==='Enter') intentarLogin('LINA')">
@@ -698,7 +732,6 @@
                     </div>
                 </div>
 
-                <!-- TÍTULO Y AUTOR -->
                 <div>
                     <label class="block text-xs font-bold text-gray-600 mb-1">TÍTULO DEL PRODUCTO</label>
                     <input type="text" id="titulo_producto" required class="w-full border-2 p-2 rounded" placeholder="Nombre completo del producto académico">
@@ -715,7 +748,6 @@
                     </div>
                 </div>
 
-                <!-- CAMPOS ESPECÍFICOS DE JOSÉ -->
                 <div class="bg-green-50 p-4 rounded border-2 border-green-200">
                     <p class="text-xs font-bold text-green-800 mb-2">📋 CAMPOS ESPECÍFICOS SEGÚN CATEGORÍA</p>
                     <div id="campos-jose-especificos">
@@ -723,7 +755,6 @@
                     </div>
                 </div>
 
-                <!-- ESTADO Y OBSERVACIONES -->
                 <div class="grid grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">DOC. COMPLETA</label>
@@ -756,7 +787,6 @@
     <!-- PANEL LINA (TODO EL COMPILADO) -->
     <div id="panel-lina" class="hidden flex-1 overflow-auto p-4 md:p-8">
         <div class="max-w-full mx-auto space-y-6 px-4">
-            <!-- HEADER LINA -->
             <div class="flex justify-between items-center">
                 <div>
                     <div class="flex items-center gap-3">
@@ -772,7 +802,6 @@
                 </button>
             </div>
 
-            <!-- TABLA DE SOLICITUDES -->
             <div class="bg-white rounded-xl shadow-xl overflow-hidden overflow-x-auto">
                 <table class="w-full min-w-[1000px]">
                     <thead class="bg-blue-900 text-white text-xs font-bold uppercase">
@@ -796,7 +825,6 @@
     <!-- MODAL LINA (EVALUACIÓN COMPLETA) -->
     <div id="modal-evaluacion" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] flex flex-col">
-            <!-- HEADER MODAL -->
             <div class="bg-blue-900 text-white p-4 flex justify-between items-center sticky top-0 z-10">
                 <div class="flex items-center gap-3">
                     <div class="bg-white/20 p-2 rounded-lg">📊</div>
@@ -808,9 +836,7 @@
                 <button onclick="cerrarModal()" class="text-3xl hover:text-gray-300">&times;</button>
             </div>
             
-            <!-- CONTENIDO MODAL -->
             <div class="p-6 space-y-6 overflow-y-auto flex-1">
-                <!-- SECCIÓN 1: DATOS DE JOSÉ (SOLO LECTURA) -->
                 <div class="bg-green-50 p-5 rounded-lg border-2 border-green-200">
                     <div class="flex items-center gap-2 mb-4">
                         <div class="bg-[#003d2b] text-white p-1 rounded">👤</div>
@@ -838,7 +864,6 @@
                     </div>
                 </div>
 
-                <!-- SECCIÓN 2: DATOS DE LINA (EDITABLES) -->
                 <div class="bg-blue-50 p-5 rounded-lg border-2 border-blue-200">
                     <div class="flex items-center gap-2 mb-4">
                         <div class="bg-blue-900 text-white p-1 rounded">👤</div>
@@ -846,7 +871,6 @@
                         <span class="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded ml-auto">EDITABLE</span>
                     </div>
                     
-                    <!-- INFORMACIÓN DEL DOCENTE -->
                     <div class="mb-6">
                         <p class="text-sm font-bold text-gray-700 mb-3 border-b pb-2">👤 INFORMACIÓN DEL DOCENTE</p>
                         <div class="grid grid-cols-5 gap-4">
@@ -890,15 +914,11 @@
                         </div>
                     </div>
                     
-                    <!-- CAMPOS ESPECÍFICOS LINA -->
                     <div class="mb-6">
                         <p class="text-sm font-bold text-gray-700 mb-3 border-b pb-2">📋 INFORMACIÓN ESPECÍFICA DEL PRODUCTO</p>
-                        <div id="campos-lina-especificos">
-                            <!-- Se carga dinámicamente según categoría -->
-                        </div>
+                        <div id="campos-lina-especificos"></div>
                     </div>
                     
-                    <!-- EVALUACIÓN Y PUNTAJES -->
                     <div class="bg-yellow-50 p-4 rounded-lg border-2 border-yellow-300 mb-6">
                         <p class="text-sm font-bold text-yellow-900 mb-4 flex items-center gap-2">
                             <span>⭐</span> EVALUACIÓN Y LIQUIDACIÓN DE PUNTAJES
@@ -932,7 +952,6 @@
                         </div>
                     </div>
                     
-                    <!-- RESOLUCIÓN Y OBSERVACIONES -->
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-gray-600 mb-1">RESOLUCIÓN</label>
@@ -948,7 +967,6 @@
                     </div>
                 </div>
 
-                <!-- BOTÓN GUARDAR -->
                 <button id="btn-guardar-lina" onclick="guardarEvaluacion()" 
                         class="w-full bg-blue-900 text-white py-4 rounded-xl font-bold hover:bg-blue-950 transition text-lg shadow-lg flex items-center justify-center gap-3">
                     <span>💾</span> GUARDAR COMPILADO COMPLETO
@@ -959,5 +977,3 @@
 
 </body>
 </html>
-
-
