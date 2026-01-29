@@ -6,7 +6,10 @@
     <title>Sistema Productividad UQ 2024</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    
+    const CONTRASEÑAS = {
+    'JOSE': 'jose2024',  // Cambia aquí
+    'LINA': 'lina2024'   // Cambia aquí
+};
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
         import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
@@ -507,3 +510,4 @@
 
 </body>
 </html>
+
