@@ -9,7 +9,7 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
         const firebaseConfig = {
@@ -25,122 +25,158 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        // URL DEL SCRIPT DE DRIVE (Solo se usa cuando Jose crea el registro)
         const urlAppsScript = "https://script.google.com/macros/s/AKfycbyKD0JyxaTKS6u3WXnJYgZl3aR5XEJ3v7DlbDOBBqk8KG4FYT5Wc23AqPIZf0vWAVND7g/exec";
 
         let rolActual = ''; 
 
-        // --- SISTEMA DE NAVEGACIÓN Y LOGIN ---
+        // --- NAVEGACIÓN ---
         window.iniciarSesion = (rol) => {
             rolActual = rol;
             document.getElementById('pantalla-login').classList.add('hidden');
             
             if (rol === 'JOSE') {
                 document.getElementById('panel-jose').classList.remove('hidden');
-                document.getElementById('header-title').innerText = "MÓDULO DE RADICACIÓN (JOSE)";
+                document.getElementById('header-title').innerText = "RADICACIÓN DE SOLICITUDES (JOSÉ)";
                 document.getElementById('header-bg').classList.add('bg-[#003d2b]');
             } else {
                 document.getElementById('panel-lina').classList.remove('hidden');
-                document.getElementById('header-title').innerText = "MÓDULO DE EVALUACIÓN CIARP (LINA)";
+                document.getElementById('header-title').innerText = "EVALUACIÓN CIARP (LINA)";
                 document.getElementById('header-bg').classList.add('bg-blue-900');
                 cargarPendientesLina();
             }
         };
 
-        // --- LÓGICA DE JOSE (CREAR) ---
+        // --- LÓGICA JOSÉ: CAMPOS DINÁMICOS POR CATEGORÍA ---
         window.cambiarCategoria = () => {
             const cat = document.getElementById('categoria').value;
             const container = document.getElementById('campos-especificos');
-            let html = '';
-            // Estilos para inputs de Jose
             const inputClass = "w-full p-2 border border-gray-300 rounded focus:border-green-600 outline-none";
             const labelClass = "block text-xs font-bold text-gray-500 uppercase mb-1";
+            let html = '';
 
-            if (cat.includes("Rev")) {
+            // Campos según categoría (basado en Seguimiento 2024)
+            if (cat.includes("Artículos")) {
                 html = `<div class="grid grid-cols-2 gap-4">
-                    <div><label class="${labelClass}">ISSN</label><input type="text" id="codigo_id" class="${inputClass}"></div>
-                    <div><label class="${labelClass}">Nombre Revista</label><input type="text" id="lugar_publicacion" class="${inputClass}"></div>
-                    <div class="col-span-2"><label class="${labelClass}">Modalidad</label><input type="text" id="modalidad" placeholder="Full paper / Review" class="${inputClass}"></div>
+                    <div><label class="${labelClass}">ISSN Revista</label><input type="text" id="issn" class="${inputClass}"></div>
+                    <div><label class="${labelClass}">Nombre de la Revista</label><input type="text" id="nombre_revista" class="${inputClass}"></div>
+                    <div class="col-span-2"><label class="${labelClass}">Modalidad</label>
+                    <select id="modalidad" class="${inputClass}">
+                        <option>Full paper</option>
+                        <option>Short paper</option>
+                        <option>Review</option>
+                    </select></div>
                 </div>`;
-            } else if (cat.includes("Ponencia")) {
+            } else if (cat.includes("Ponencias")) {
                 html = `<div class="grid grid-cols-2 gap-4">
-                    <div><label class="${labelClass}">Evento</label><input type="text" id="lugar_publicacion" class="${inputClass}"></div>
-                    <div><label class="${labelClass}">Tipo (Nac/Int)</label><select id="modalidad" class="${inputClass}"><option>Nacional</option><option>Internacional</option></select></div>
+                    <div><label class="${labelClass}">Nombre del Evento</label><input type="text" id="nombre_revista" class="${inputClass}"></div>
+                    <div><label class="${labelClass}">Tipo</label>
+                    <select id="modalidad" class="${inputClass}">
+                        <option>Nacional</option>
+                        <option>Internacional</option>
+                    </select></div>
+                </div>`;
+            } else if (cat.includes("Libro")) {
+                html = `<div class="grid grid-cols-2 gap-4">
+                    <div><label class="${labelClass}">ISBN</label><input type="text" id="issn" class="${inputClass}"></div>
+                    <div><label class="${labelClass}">Editorial</label><input type="text" id="nombre_revista" class="${inputClass}"></div>
                 </div>`;
             } else {
-                html = `<div><label class="${labelClass}">Detalle Adicional</label><input type="text" id="codigo_id" class="${inputClass}"></div>`;
+                html = `<div><label class="${labelClass}">Información Adicional</label><input type="text" id="issn" class="${inputClass}"></div>`;
             }
             container.innerHTML = html;
         };
 
+        // --- GUARDAR SOLICITUD (JOSÉ) ---
         document.getElementById('form-jose').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn-jose');
-            btn.innerText = "ENVIANDO..."; btn.disabled = true;
+            btn.innerText = "GUARDANDO..."; 
+            btn.disabled = true;
 
             const registro = {
-                // Datos Fase 1 (Jose)
-                categoria_pestana: document.getElementById('categoria').value,
-                anio: document.getElementById('anio').value,
+                // Datos de JOSÉ (Seguimiento)
+                anio: "2024",
                 semestre: document.getElementById('semestre').value,
-                fecha_solicitud: document.getElementById('fecha_solicitud').value,
-                titulo: document.getElementById('titulo').value,
+                categoria: document.getElementById('categoria').value,
+                fecha_recibido: document.getElementById('fecha_recibido').value,
+                titulo_producto: document.getElementById('titulo_producto').value,
                 autor: document.getElementById('autor').value,
-                documento: document.getElementById('documento').value,
-                pais: document.getElementById('pais').value,
                 programa: document.getElementById('programa').value,
-                facultad: document.getElementById('facultad').value,
-                dedicacion: document.getElementById('dedicacion').value,
-                codigo_id: document.getElementById('codigo_id')?.value || '',
-                lugar_publicacion: document.getElementById('lugar_publicacion')?.value || '',
+                doc_completa: document.getElementById('doc_completa').value,
+                observaciones_jose: document.getElementById('observaciones_jose').value,
+                
+                // Campos específicos por categoría
+                issn: document.getElementById('issn')?.value || '',
+                nombre_revista: document.getElementById('nombre_revista')?.value || '',
                 modalidad: document.getElementById('modalidad')?.value || '',
                 
-                // Datos Fase 2 (Lina) - Inicialmente vacíos
-                estado: "EN TRÁMITE",
-                puntos_asignados: 0,
+                // Campos de LINA (vacíos inicialmente)
+                estado_ciarp: "PENDIENTE",
                 acta_ciarp: "",
                 resolucion: "",
-                observaciones: "",
-                fecha_creacion: serverTimestamp()
+                documento_id: "",
+                escolaridad: "",
+                categoria_docente: "",
+                dedicacion: "",
+                pais: "",
+                puntaje: 0,
+                observaciones_lina: "",
+                fecha_creacion: new Date().toISOString()
             };
 
             try {
-                // 1. Guardar en Firebase (Base de Datos Maestra)
+                // 1. Firebase
                 await addDoc(collection(db, 'registros_2024'), registro);
                 
-                // 2. Enviar copia a Drive (Backup para Jose)
-                fetch(urlAppsScript, { method: 'POST', mode: 'no-cors', body: JSON.stringify(registro) });
+                // 2. Drive (backup)
+                fetch(urlAppsScript, { 
+                    method: 'POST',
+                    body: JSON.stringify(registro),
+                    headers: { 'Content-Type': 'application/json' }
+                }).catch(e => console.log('Sync Drive:', e));
 
-                alert("✅ Solicitud Radicada Exitosamente");
+                alert("✅ Solicitud Radicada Correctamente");
                 e.target.reset();
                 cambiarCategoria();
-            } catch (err) { console.error(err); alert("Error al guardar"); }
-            finally { btn.innerText = "RADICAR SOLICITUD"; btn.disabled = false; }
+            } catch (err) { 
+                alert("❌ Error: " + err.message); 
+            } finally { 
+                btn.innerText = "RADICAR SOLICITUD"; 
+                btn.disabled = false; 
+            }
         });
 
-        // --- LÓGICA DE LINA (EVALUAR) ---
+        // --- LÓGICA LINA: CARGAR PENDIENTES ---
         async function cargarPendientesLina() {
             const tbody = document.getElementById('tabla-pendientes');
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center p-4">Cargando...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4 text-gray-500">Cargando solicitudes...</td></tr>';
             
             const q = query(collection(db, 'registros_2024'), orderBy('fecha_creacion', 'desc'));
-            const querySnapshot = await getDocs(q);
+            const snapshot = await getDocs(q);
             
             tbody.innerHTML = '';
-            querySnapshot.forEach((docSnap) => {
-                const data = docSnap.data();
+            
+            if (snapshot.empty) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4 text-gray-400">No hay solicitudes registradas</td></tr>';
+                return;
+            }
+            
+            snapshot.forEach((docSnap) => {
+                const d = docSnap.data();
                 const tr = document.createElement('tr');
                 tr.className = "border-b hover:bg-blue-50 cursor-pointer transition";
-                tr.onclick = () => abrirModalEvaluacion(docSnap.id, data);
+                tr.onclick = () => abrirModalEvaluacion(docSnap.id, d);
                 
-                let estadoClass = data.estado === "APROBADO" ? "text-green-600 font-bold" : (data.estado === "NEGADO" ? "text-red-600 font-bold" : "text-yellow-600 font-bold");
+                let estadoColor = d.estado_ciarp === "APROBADO" ? "text-green-600" : 
+                                 d.estado_ciarp === "NEGADO" ? "text-red-600" : "text-yellow-600";
 
                 tr.innerHTML = `
-                    <td class="p-3 text-sm">${data.fecha_solicitud}</td>
-                    <td class="p-3 text-sm font-bold">${data.autor}</td>
-                    <td class="p-3 text-sm">${data.titulo}</td>
-                    <td class="p-3 text-sm">${data.categoria_pestana}</td>
-                    <td class="p-3 text-sm ${estadoClass}">${data.estado}</td>
+                    <td class="p-3 text-sm">${d.fecha_recibido || 'N/A'}</td>
+                    <td class="p-3 text-sm font-bold">${d.autor}</td>
+                    <td class="p-3 text-sm">${d.titulo_producto}</td>
+                    <td class="p-3 text-sm">${d.categoria}</td>
+                    <td class="p-3 text-sm ${estadoColor} font-bold">${d.estado_ciarp}</td>
+                    <td class="p-3 text-sm text-center font-bold ${d.puntaje > 0 ? 'text-green-700' : 'text-gray-400'}">${d.puntaje || '-'}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -152,16 +188,23 @@
             idRegistroActual = id;
             document.getElementById('modal-evaluacion').classList.remove('hidden');
             
-            // Llenar datos de lectura (Lo que puso Jose)
-            document.getElementById('info-titulo').innerText = data.titulo;
+            // Datos de José (solo lectura)
+            document.getElementById('info-titulo').innerText = data.titulo_producto;
             document.getElementById('info-autor').innerText = data.autor;
+            document.getElementById('info-programa').innerText = data.programa;
+            document.getElementById('info-obs-jose').innerText = data.observaciones_jose || 'Sin observaciones';
             
-            // Llenar datos de edición (Lo que pone Lina)
-            document.getElementById('edit-estado').value = data.estado || "EN TRÁMITE";
-            document.getElementById('edit-puntos').value = data.puntos_asignados || 0;
+            // Datos editables por Lina
+            document.getElementById('edit-estado').value = data.estado_ciarp || "PENDIENTE";
             document.getElementById('edit-acta').value = data.acta_ciarp || "";
             document.getElementById('edit-resolucion').value = data.resolucion || "";
-            document.getElementById('edit-obs').value = data.observaciones || "";
+            document.getElementById('edit-documento').value = data.documento_id || "";
+            document.getElementById('edit-escolaridad').value = data.escolaridad || "";
+            document.getElementById('edit-categoria-doc').value = data.categoria_docente || "";
+            document.getElementById('edit-dedicacion').value = data.dedicacion || "";
+            document.getElementById('edit-pais').value = data.pais || "";
+            document.getElementById('edit-puntaje').value = data.puntaje || 0;
+            document.getElementById('edit-obs-lina').value = data.observaciones_lina || "";
         };
 
         window.cerrarModal = () => document.getElementById('modal-evaluacion').classList.add('hidden');
@@ -170,182 +213,294 @@
             if(!idRegistroActual) return;
             
             const actualizacion = {
-                estado: document.getElementById('edit-estado').value,
-                puntos_asignados: Number(document.getElementById('edit-puntos').value),
+                estado_ciarp: document.getElementById('edit-estado').value,
                 acta_ciarp: document.getElementById('edit-acta').value,
                 resolucion: document.getElementById('edit-resolucion').value,
-                observaciones: document.getElementById('edit-obs').value
+                documento_id: document.getElementById('edit-documento').value,
+                escolaridad: document.getElementById('edit-escolaridad').value,
+                categoria_docente: document.getElementById('edit-categoria-doc').value,
+                dedicacion: document.getElementById('edit-dedicacion').value,
+                pais: document.getElementById('edit-pais').value,
+                puntaje: Number(document.getElementById('edit-puntaje').value),
+                observaciones_lina: document.getElementById('edit-obs-lina').value
             };
 
             await updateDoc(doc(db, 'registros_2024', idRegistroActual), actualizacion);
             alert("✅ Evaluación Guardada");
             cerrarModal();
-            cargarPendientesLina(); // Recargar tabla
+            cargarPendientesLina();
         };
 
-        // --- EXPORTAR TODO A EXCEL (Para Lina) ---
-        window.descargarExcelCompleto = async () => {
-            const querySnapshot = await getDocs(collection(db, 'registros_2024'));
+        // --- EXPORTAR EXCEL COMPLETO ---
+        window.descargarExcel = async () => {
+            const snapshot = await getDocs(collection(db, 'registros_2024'));
             const datos = [];
-            querySnapshot.forEach(doc => {
+            snapshot.forEach(doc => {
                 const d = doc.data();
-                datos.push(d); // Exporta todo, incluyendo puntos y actas
+                datos.push({
+                    "Año": d.anio,
+                    "Semestre": d.semestre,
+                    "Categoría": d.categoria,
+                    "Fecha Recibido": d.fecha_recibido,
+                    "Título": d.titulo_producto,
+                    "Autor": d.autor,
+                    "Programa": d.programa,
+                    "Doc. Completa": d.doc_completa,
+                    "Estado CIARP": d.estado_ciarp,
+                    "Acta": d.acta_ciarp,
+                    "Resolución": d.resolucion,
+                    "Cédula": d.documento_id,
+                    "Escolaridad": d.escolaridad,
+                    "Categoría Docente": d.categoria_docente,
+                    "Dedicación": d.dedicacion,
+                    "País": d.pais,
+                    "Puntaje": d.puntaje,
+                    "Obs. José": d.observaciones_jose,
+                    "Obs. Lina": d.observaciones_lina
+                });
             });
             const ws = XLSX.utils.json_to_sheet(datos);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Base Maestra 2024");
-            XLSX.writeFile(wb, "Reporte_Completo_CIARP.xlsx");
+            XLSX.utils.book_append_sheet(wb, ws, "Productividad 2024");
+            XLSX.writeFile(wb, `Reporte_Productividad_${new Date().toISOString().split('T')[0]}.xlsx`);
         };
 
         signInAnonymously(auth);
-        window.onload = () => { /* Esperando login */ };
+        window.onload = () => { cambiarCategoria(); };
     </script>
 </head>
 <body class="bg-gray-100 font-sans h-screen flex flex-col">
 
-    <div id="header-bg" class="bg-gray-800 text-white p-4 shadow-lg flex justify-between items-center transition-colors duration-500">
+    <div id="header-bg" class="bg-gray-800 text-white p-4 shadow-lg flex justify-between items-center transition-colors">
         <div>
             <h1 id="header-title" class="text-xl font-black tracking-wider">SISTEMA PRODUCTIVIDAD UQ</h1>
-            <p class="text-[10px] opacity-75">Control de Acceso</p>
+            <p class="text-[10px] opacity-75">Universidad del Quindío - 2024</p>
         </div>
         <button onclick="location.reload()" class="text-xs bg-white/20 px-3 py-1 rounded hover:bg-white/40">Cerrar Sesión</button>
     </div>
 
+    <!-- LOGIN -->
     <div id="pantalla-login" class="flex-1 flex items-center justify-center p-4">
         <div class="bg-white p-10 rounded-2xl shadow-2xl text-center max-w-md w-full">
             <h2 class="text-2xl font-bold text-gray-700 mb-8">Seleccione su Perfil</h2>
             
-            <button onclick="iniciarSesion('JOSE')" class="w-full bg-[#003d2b] hover:bg-green-900 text-white p-4 rounded-xl mb-4 flex items-center justify-center gap-3 transition-transform hover:scale-105">
-                <div class="text-left">
-                    <div class="font-black text-lg">SOY JOSE</div>
-                    <div class="text-xs opacity-80">Radicación de Solicitudes</div>
-                </div>
+            <button onclick="iniciarSesion('JOSE')" class="w-full bg-[#003d2b] hover:bg-green-900 text-white p-4 rounded-xl mb-4 transition-transform hover:scale-105">
+                <div class="font-black text-lg">SOY JOSÉ</div>
+                <div class="text-xs opacity-80">Radicación de Solicitudes</div>
             </button>
 
-            <button onclick="iniciarSesion('LINA')" class="w-full bg-blue-800 hover:bg-blue-900 text-white p-4 rounded-xl flex items-center justify-center gap-3 transition-transform hover:scale-105">
-                <div class="text-left">
-                    <div class="font-black text-lg">SOY LINA</div>
-                    <div class="text-xs opacity-80">Evaluación y Puntos CIARP</div>
-                </div>
+            <button onclick="iniciarSesion('LINA')" class="w-full bg-blue-800 hover:bg-blue-900 text-white p-4 rounded-xl transition-transform hover:scale-105">
+                <div class="font-black text-lg">SOY LINA</div>
+                <div class="text-xs opacity-80">Evaluación CIARP y Puntos</div>
             </button>
         </div>
     </div>
 
+    <!-- PANEL JOSÉ -->
     <div id="panel-jose" class="hidden flex-1 overflow-auto p-4 md:p-8">
-        <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
-            <div class="bg-green-50 p-4 border-b border-green-100">
-                <h3 class="text-green-800 font-bold">Nueva Solicitud</h3>
+        <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
+            <div class="bg-green-50 p-4 border-b">
+                <h3 class="text-green-800 font-bold text-lg">📝 Nueva Solicitud de Productividad</h3>
             </div>
-            <form id="form-jose" class="p-6 space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-xs font-bold text-gray-500">Fecha Solicitud</label>
-                    <input type="date" id="fecha_solicitud" required class="w-full border p-2 rounded"></div>
-                    <div><label class="block text-xs font-bold text-gray-500">Categoría</label>
-                    <select id="categoria" onchange="cambiarCategoria()" class="w-full border p-2 rounded font-bold">
-                        <option value="Publicac. Rev. Index">Artículos Revistas</option>
-                        <option value="Ponencias">Ponencias</option>
-                        <option value="Libro Prod Investigación">Libros</option>
-                        <option value="Software">Software</option>
-                        <option value="Direc. Tesis">Tesis</option>
-                    </select></div>
-                </div>
-                <div><label class="block text-xs font-bold text-gray-500">Título del Producto</label>
-                <input type="text" id="titulo" required class="w-full border p-2 rounded"></div>
-                
-                <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-xs font-bold text-gray-500">Docente</label>
-                    <input type="text" id="autor" required class="w-full border p-2 rounded"></div>
-                    <div><label class="block text-xs font-bold text-gray-500">Cédula</label>
-                    <input type="text" id="documento" required class="w-full border p-2 rounded"></div>
-                </div>
-                
-                <div class="grid grid-cols-3 gap-2">
-                    <div><label class="block text-xs font-bold text-gray-500">País</label><input type="text" id="pais" class="w-full border p-2 rounded"></div>
-                    <div><label class="block text-xs font-bold text-gray-500">Programa</label><input type="text" id="programa" class="w-full border p-2 rounded"></div>
-                    <div><label class="block text-xs font-bold text-gray-500">Dedicación</label>
-                    <select id="dedicacion" class="w-full border p-2 rounded"><option>TC</option><option>MT</option><option>Cátedra</option></select></div>
-                    <input type="hidden" id="anio" value="2024"><input type="hidden" id="semestre" value="I"><input type="hidden" id="facultad" value="Ingeniería">
+            <form id="form-jose" class="p-6 space-y-5">
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">SEMESTRE</label>
+                        <select id="semestre" required class="w-full border-2 p-2 rounded font-bold">
+                            <option>I</option>
+                            <option>II</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">FECHA RECIBIDO</label>
+                        <input type="date" id="fecha_recibido" required class="w-full border-2 p-2 rounded">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">CATEGORÍA</label>
+                        <select id="categoria" onchange="cambiarCategoria()" required class="w-full border-2 p-2 rounded font-bold">
+                            <option value="Artículos Indexados">Artículos Indexados</option>
+                            <option value="Artículos No Indexados">Artículos No Indexados</option>
+                            <option value="Ponencias">Ponencias</option>
+                            <option value="Libro Texto">Libro Texto</option>
+                            <option value="Libro Ensayo">Libro Ensayo</option>
+                            <option value="Libro Investigación">Libro Investigación</option>
+                            <option value="Software">Software</option>
+                            <option value="Patente">Patente</option>
+                            <option value="Tesis">Tesis</option>
+                            <option value="Títulos">Títulos</option>
+                            <option value="Ascensos">Ascensos</option>
+                        </select>
+                    </div>
                 </div>
 
-                <div id="campos-especificos" class="bg-gray-50 p-4 rounded border border-gray-200"></div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">TÍTULO DEL PRODUCTO</label>
+                    <input type="text" id="titulo_producto" required class="w-full border-2 p-2 rounded">
+                </div>
 
-                <button type="submit" id="btn-jose" class="w-full bg-[#003d2b] text-white py-3 rounded font-bold hover:bg-black">RADICAR SOLICITUD</button>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">NOMBRE DEL AUTOR/DOCENTE</label>
+                        <input type="text" id="autor" required class="w-full border-2 p-2 rounded">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">PROGRAMA ACADÉMICO</label>
+                        <input type="text" id="programa" required class="w-full border-2 p-2 rounded">
+                    </div>
+                </div>
+
+                <div id="campos-especificos" class="bg-gray-50 p-4 rounded border-2 border-dashed"></div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">DOCUMENTACIÓN COMPLETA</label>
+                        <select id="doc_completa" class="w-full border-2 p-2 rounded font-bold">
+                            <option>SI</option>
+                            <option>NO</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">OBSERVACIONES</label>
+                        <input type="text" id="observaciones_jose" placeholder="Opcional" class="w-full border-2 p-2 rounded">
+                    </div>
+                </div>
+
+                <button type="submit" id="btn-jose" class="w-full bg-[#003d2b] text-white py-3 rounded-lg font-bold hover:bg-black transition">
+                    ✅ RADICAR SOLICITUD
+                </button>
             </form>
         </div>
     </div>
 
+    <!-- PANEL LINA -->
     <div id="panel-lina" class="hidden flex-1 overflow-auto p-4 md:p-8">
-        <div class="max-w-5xl mx-auto space-y-6">
+        <div class="max-w-6xl mx-auto space-y-6">
             <div class="flex justify-between items-center">
-                <h2 class="text-2xl font-bold text-blue-900">Bandeja de Pendientes</h2>
-                <button onclick="descargarExcelCompleto()" class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700 text-sm font-bold">📥 Descargar Reporte Maestro</button>
+                <h2 class="text-2xl font-bold text-blue-900">📋 Bandeja de Solicitudes Pendientes</h2>
+                <button onclick="descargarExcel()" class="bg-green-600 text-white px-5 py-2 rounded-lg shadow hover:bg-green-700 font-bold flex items-center gap-2">
+                    <span>📥</span> Exportar a Excel
+                </button>
             </div>
 
             <div class="bg-white rounded-xl shadow-xl overflow-hidden">
-                <table class="w-full text-left border-collapse">
-                    <thead class="bg-blue-100 text-blue-900 uppercase text-xs font-bold">
+                <table class="w-full">
+                    <thead class="bg-blue-100 text-blue-900 text-xs font-bold uppercase">
                         <tr>
-                            <th class="p-3">Fecha</th>
-                            <th class="p-3">Docente</th>
-                            <th class="p-3">Título</th>
-                            <th class="p-3">Categoría</th>
-                            <th class="p-3">Estado</th>
+                            <th class="p-3 text-left">Fecha</th>
+                            <th class="p-3 text-left">Docente</th>
+                            <th class="p-3 text-left">Producto</th>
+                            <th class="p-3 text-left">Categoría</th>
+                            <th class="p-3 text-left">Estado</th>
+                            <th class="p-3 text-center">Puntos</th>
                         </tr>
                     </thead>
-                    <tbody id="tabla-pendientes" class="divide-y divide-gray-100">
-                        </tbody>
+                    <tbody id="tabla-pendientes"></tbody>
                 </table>
             </div>
         </div>
     </div>
 
+    <!-- MODAL EVALUACIÓN LINA -->
     <div id="modal-evaluacion" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
-            <div class="bg-blue-900 text-white p-4 flex justify-between items-center">
-                <h3 class="font-bold">Evaluar Solicitud</h3>
-                <button onclick="cerrarModal()" class="text-2xl">&times;</button>
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div class="bg-blue-900 text-white p-4 flex justify-between items-center sticky top-0">
+                <h3 class="font-bold text-lg">📊 Evaluación CIARP</h3>
+                <button onclick="cerrarModal()" class="text-3xl hover:text-gray-300">&times;</button>
             </div>
-            <div class="p-6 space-y-4">
-                <div class="bg-gray-50 p-3 rounded text-sm">
-                    <p class="font-bold text-gray-500 text-xs">PRODUCTO</p>
-                    <p id="info-titulo" class="font-black text-gray-800 mb-2"></p>
-                    <p class="font-bold text-gray-500 text-xs">DOCENTE</p>
-                    <p id="info-autor" class="text-gray-800"></p>
+            
+            <div class="p-6 space-y-5">
+                <!-- Datos de José (Solo lectura) -->
+                <div class="bg-green-50 p-4 rounded-lg border-2 border-green-200">
+                    <p class="text-xs font-bold text-green-800 mb-2">📝 INFORMACIÓN RADICADA POR JOSÉ</p>
+                    <div class="space-y-2">
+                        <div><span class="font-bold text-gray-600">Producto:</span> <span id="info-titulo" class="text-gray-900"></span></div>
+                        <div><span class="font-bold text-gray-600">Docente:</span> <span id="info-autor" class="text-gray-900"></span></div>
+                        <div><span class="font-bold text-gray-600">Programa:</span> <span id="info-programa" class="text-gray-900"></span></div>
+                        <div><span class="font-bold text-gray-600">Observaciones:</span> <span id="info-obs-jose" class="text-gray-600 italic"></span></div>
+                    </div>
                 </div>
 
+                <!-- Evaluación CIARP (Lina) -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-blue-900 mb-1">Estado CIARP</label>
+                        <label class="block text-xs font-bold text-blue-900 mb-1">ESTADO CIARP *</label>
                         <select id="edit-estado" class="w-full border-2 border-blue-200 p-2 rounded font-bold">
-                            <option value="EN TRÁMITE">EN TRÁMITE</option>
+                            <option value="PENDIENTE">PENDIENTE</option>
                             <option value="APROBADO">APROBADO</option>
                             <option value="NEGADO">NEGADO</option>
                             <option value="DEVUELTO">DEVUELTO</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-blue-900 mb-1">Puntos Asignados</label>
-                        <input type="number" id="edit-puntos" class="w-full border-2 border-blue-200 p-2 rounded font-bold text-right">
+                        <label class="block text-xs font-bold text-blue-900 mb-1">ACTA CIARP</label>
+                        <input type="text" id="edit-acta" placeholder="Ej: 3-30/03/2024" class="w-full border-2 border-blue-200 p-2 rounded">
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-blue-900 mb-1">Acta CIARP</label>
-                        <input type="text" id="edit-acta" class="w-full border p-2 rounded">
+                        <label class="block text-xs font-bold text-blue-900 mb-1">RESOLUCIÓN</label>
+                        <input type="text" id="edit-resolucion" class="w-full border-2 border-blue-200 p-2 rounded">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-blue-900 mb-1">Resolución</label>
-                        <input type="text" id="edit-resolucion" class="w-full border p-2 rounded">
+                        <label class="block text-xs font-bold text-blue-900 mb-1">DOCUMENTO IDENTIDAD</label>
+                        <input type="text" id="edit-documento" class="w-full border-2 border-blue-200 p-2 rounded">
+                    </div>
+                </div>
+
+                <!-- Información Académica -->
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-blue-900 mb-1">ESCOLARIDAD</label>
+                        <select id="edit-escolaridad" class="w-full border-2 border-blue-200 p-2 rounded">
+                            <option value="">Seleccionar</option>
+                            <option>Pregrado</option>
+                            <option>Especialización</option>
+                            <option>Maestría</option>
+                            <option>Doctorado</option>
+                            <option>Posdoctorado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-blue-900 mb-1">CATEGORÍA DOCENTE</label>
+                        <select id="edit-categoria-doc" class="w-full border-2 border-blue-200 p-2 rounded">
+                            <option value="">Seleccionar</option>
+                            <option>Auxiliar</option>
+                            <option>Asistente</option>
+                            <option>Asociado</option>
+                            <option>Titular</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-blue-900 mb-1">DEDICACIÓN</label>
+                        <select id="edit-dedicacion" class="w-full border-2 border-blue-200 p-2 rounded">
+                            <option value="">Seleccionar</option>
+                            <option>TC</option>
+                            <option>MT</option>
+                            <option>Cátedra</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-blue-900 mb-1">PAÍS</label>
+                        <input type="text" id="edit-pais" class="w-full border-2 border-blue-200 p-2 rounded">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-blue-900 mb-1">PUNTAJE ASIGNADO *</label>
+                        <input type="number" step="0.1" id="edit-puntaje" class="w-full border-2 border-blue-200 p-2 rounded font-bold text-right text-lg">
                     </div>
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-blue-900 mb-1">Observaciones Técnicas</label>
-                    <textarea id="edit-obs" class="w-full border p-2 rounded h-20 text-sm"></textarea>
+                    <label class="block text-xs font-bold text-blue-900 mb-1">OBSERVACIONES TÉCNICAS</label>
+                    <textarea id="edit-obs-lina" rows="3" class="w-full border-2 border-blue-200 p-2 rounded"></textarea>
                 </div>
 
-                <button onclick="guardarEvaluacion()" class="w-full bg-blue-800 text-white py-3 rounded font-bold hover:bg-blue-900">GUARDAR EVALUACIÓN</button>
+                <button onclick="guardarEvaluacion()" class="w-full bg-blue-800 text-white py-3 rounded-lg font-bold hover:bg-blue-900 transition">
+                    💾 GUARDAR EVALUACIÓN
+                </button>
             </div>
         </div>
     </div>
