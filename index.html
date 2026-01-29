@@ -1,177 +1,48 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Productividad UQ 2024</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+<script type="module">
+    // ... (Tu config de Firebase y Auth) ...
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBbqMf8ZOmqmbGTmr2tr8nziyUWKSE6OWg",
-            authDomain: "uniquindio-produccion.firebaseapp.com",
-            projectId: "uniquindio-produccion",
-            storageBucket: "uniquindio-produccion.firebasestorage.app",
-            messagingSenderId: "440871309124",
-            appId: "1:440871309124:web:108be1894adaf6ecaf1111"
+    const urlAppsScript = "https://script.google.com/macros/s/AKfycbygmAVI-Ma2YIqTkft0lItFlPnyhoVWPJFACR7qXo-NAr5MQ4JMH29BwTMOPmII05ovqg/exec";
+
+    document.getElementById('product-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btn-save');
+        btn.innerText = "ENVIANDO...";
+        btn.disabled = true;
+
+        const registro = {
+            categoria_pestana: document.getElementById('categoria').value,
+            anio: document.getElementById('anio').value,
+            semestre: document.getElementById('semestre').value,
+            fecha_solicitud: document.getElementById('fecha_solicitud').value, // NUEVO
+            titulo: document.getElementById('titulo').value,
+            autor: document.getElementById('autor').value,
+            documento: document.getElementById('documento').value,
+            pais: document.getElementById('pais').value, // NUEVO (Viene del archivo 2024)
+            dedicacion: document.getElementById('dedicacion').value,
+            facultad: document.getElementById('facultad').value,
+            programa: document.getElementById('programa').value,
+            modalidad: document.getElementById('modalidad')?.value || 'N/A',
+            extra_id: document.getElementById('extra_id')?.value || 'N/A',
+            extra_nombre: document.getElementById('extra_nombre')?.value || 'N/A'
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbyKD0JyxaTKS6u3WXnJYgZl3aR5XEJ3v7DlbDOBBqk8KG4FYT5Wc23AqPIZf0vWAVND7g/exec";
+        try {
+            // Guardar en Firebase y Drive
+            await fetch(urlAppsScript, { method: 'POST', mode: 'no-cors', body: JSON.stringify(registro) });
+            alert("✅ Registro exitoso con fecha: " + registro.fecha_solicitud);
+            e.target.reset();
+        } catch (err) { alert("❌ Error"); }
+        finally { btn.innerText = "GUARDAR REGISTRO"; btn.disabled = false; }
+    });
+</script>
 
-        window.cambiarCategoria = () => {
-            const cat = document.getElementById('categoria').value;
-            const container = document.getElementById('campos-dinamicos');
-            let html = '';
-            const inputStyle = "w-full border-2 p-3 rounded-xl text-sm outline-none focus:border-green-600 bg-white font-semibold";
-            const labelStyle = "block text-[10px] font-black text-gray-400 uppercase mb-1";
-
-            if (cat.includes('Rev')) {
-                html = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label class="${labelStyle}">ISSN / DOI</label><input type="text" id="extra_id" placeholder="Ej: 0120-3754" class="${inputStyle}"></div>
-                    <div><label class="${labelStyle}">Modalidad (Full Paper, Review)</label><input type="text" id="modalidad" class="${inputStyle}"></div>
-                </div>`;
-            } else if (cat === 'Ponencias') {
-                html = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label class="${labelStyle}">Nombre del Evento</label><input type="text" id="extra_id" class="${inputStyle}"></div>
-                    <div><label class="${labelStyle}">Tipo de Evento (Nacional/Internac.)</label><input type="text" id="modalidad" class="${inputStyle}"></div>
-                </div>`;
-            } else {
-                html = `<div><label class="${labelStyle}">Dato Adicional (ISBN/Registro)</label><input type="text" id="extra_id" class="${inputStyle}"></div>
-                        <input type="hidden" id="modalidad" value="N/A">`;
-            }
-            container.innerHTML = html;
-        };
-
-        document.getElementById('product-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('btn-save');
-            btn.innerText = "SINCRONIZANDO CON DRIVE...";
-            btn.disabled = true;
-
-            const registro = {
-                categoria_pestana: document.getElementById('categoria').value,
-                anio: document.getElementById('anio').value,
-                semestre: document.getElementById('semestre').value,
-                titulo: document.getElementById('titulo').value,
-                autor: document.getElementById('autor').value,
-                documento: document.getElementById('documento').value,
-                escolaridad: document.getElementById('escolaridad').value,
-                dedicacion: document.getElementById('dedicacion').value,
-                facultad: document.getElementById('facultad').value,
-                programa: document.getElementById('programa').value,
-                pais: document.getElementById('pais').value,
-                modalidad: document.getElementById('modalidad')?.value || 'N/A',
-                extra_id: document.getElementById('extra_id')?.value || 'N/A'
-            };
-
-            try {
-                await addDoc(collection(db, 'artifacts', 'uniquindio-produccion', 'public', 'data', 'registros_2024'), { ...registro, fecha: serverTimestamp() });
-                await fetch(urlAppsScript, { method: 'POST', mode: 'no-cors', body: JSON.stringify(registro) });
-                alert("✅ REGISTRO EXITOSO: Guardado en Firebase y en la pestaña " + registro.categoria_pestana + " de tu Drive.");
-                e.target.reset();
-                cambiarCategoria();
-            } catch (err) {
-                alert("❌ Error de red.");
-            } finally {
-                btn.innerText = "GUARDAR REGISTRO";
-                btn.disabled = false;
-            }
-        });
-
-        signInAnonymously(auth);
-        window.onload = cambiarCategoria;
-    </script>
-</head>
-<body class="bg-slate-200 p-4 md:p-8 font-sans">
-    <div class="max-w-5xl mx-auto bg-white shadow-2xl rounded-[2.5rem] overflow-hidden border-t-[14px] border-[#003d2b]">
-        <div class="p-10 bg-slate-50 border-b flex justify-between items-center">
-            <div>
-                <h1 class="text-3xl font-black text-[#003d2b] tracking-tighter">PRODUCTIVIDAD UQ</h1>
-                <p class="text-[10px] font-bold text-green-600 uppercase tracking-[0.3em]">Oficina de Asuntos Profesorales - 2024</p>
-            </div>
-            <div class="text-right hidden md:block">
-                <span class="text-[10px] font-black text-gray-300 block">SISTEMA DE RESPALDO</span>
-                <span class="text-xs font-bold text-gray-500">Google Drive Cloud v2.0</span>
-            </div>
-        </div>
-
-        <form id="product-form" class="p-10 space-y-8">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="md:col-span-2">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">1. Clasificación del Producto (Pestaña Drive)</label>
-                    <select id="categoria" onchange="cambiarCategoria()" class="w-full p-4 bg-green-50 border-2 border-green-600 rounded-2xl font-black text-green-900 outline-none shadow-sm">
-                        <option value="Publicac. Rev. Index">Artículos Revistas Indexadas</option>
-                        <option value="Rev. No Index">Artículos Revistas No Indexadas</option>
-                        <option value="Libro Prod Investigación">Libros de Investigación</option>
-                        <option value="Ponencias">Ponencias y Eventos</option>
-                        <option value="Software">Software y Aplicaciones</option>
-                        <option value="Obra Artistica">Producción Audiovisual / Artística</option>
-                        <option value="Direc. Tesis">Dirección de Tesis (Postgrado)</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">País / Sede</label>
-                    <input type="text" id="pais" value="Colombia" class="w-full p-4 border-2 rounded-2xl outline-none focus:border-green-600 font-bold">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div class="space-y-6">
-                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Título Completo del Trabajo</label>
-                    <input type="text" id="titulo" required class="w-full border-b-4 border-slate-100 p-2 outline-none focus:border-green-600 font-bold text-xl transition-all"></div>
-                    
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Nombre del Docente</label>
-                        <input type="text" id="autor" required class="w-full border-b-2 p-2 outline-none focus:border-green-600 font-semibold"></div>
-                        <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Documento ID</label>
-                        <input type="text" id="documento" required class="w-full border-b-2 p-2 outline-none focus:border-green-600 font-semibold"></div>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Escolaridad</label>
-                        <select id="escolaridad" class="w-full border-b-2 p-2 outline-none font-bold">
-                            <option>Doctorado</option><option>Maestría</option><option>Especialización</option><option>Pregrado</option>
-                        </select></div>
-                        <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Dedicación</label>
-                        <select id="dedicacion" class="w-full border-b-2 p-2 outline-none font-bold">
-                            <option>TC (Tiempo Completo)</option><option>MT (Medio Tiempo)</option><option>Catedrático</option>
-                        </select></div>
-                    </div>
-                </div>
-
-                <div class="space-y-6">
-                    <div class="flex gap-4">
-                        <div class="w-1/2"><label class="block text-[10px] font-bold text-slate-400 uppercase">Año</label>
-                        <input type="number" id="anio" value="2024" class="w-full border-b-2 p-2 outline-none"></div>
-                        <div class="w-1/2"><label class="block text-[10px] font-bold text-slate-400 uppercase">Semestre</label>
-                        <select id="semestre" class="w-full border-b-2 p-2 outline-none font-bold"><option>I</option><option>II</option></select></div>
-                    </div>
-                    
-                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Facultad</label>
-                    <select id="facultad" class="w-full border-b-2 p-2 outline-none font-bold text-sm">
-                        <option>Ciencias Básicas y Tecnologías</option><option>Ingeniería</option><option>Ciencias de la Salud</option>
-                        <option>Ciencias de la Educación</option><option>Ciencias Económicas, Adm. y Contables</option>
-                        <option>Ciencias Agroindustriales</option><option>Ciencias Humanas y Bellas Artes</option>
-                    </select></div>
-                    
-                    <div><label class="block text-[10px] font-bold text-slate-400 uppercase">Programa Académico</label>
-                    <input type="text" id="programa" required class="w-full border-b-2 p-2 outline-none font-bold"></div>
-                </div>
-            </div>
-
-            <div id="campos-dinamicos" class="bg-slate-50 p-8 rounded-[2rem] border-2 border-dashed border-slate-200 min-h-[100px] flex flex-col justify-center"></div>
-
-            <button type="submit" id="btn-save" class="w-full bg-[#003d2b] text-white font-black py-6 rounded-3xl shadow-2xl hover:bg-black transition-all transform hover:-translate-y-1 active:scale-95 text-lg">
-                GUARDAR Y SINCRONIZAR CON DRIVE
-            </button>
-        </form>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl mb-6">
+    <div>
+        <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">Fecha de Presentación de la Solicitud</label>
+        <input type="date" id="fecha_solicitud" required class="w-full p-2 border-2 rounded-lg outline-none focus:border-green-600 font-bold">
     </div>
-</body>
-</html>
+    <div>
+        <label class="block text-[10px] font-black text-gray-500 uppercase mb-1">País del Producto</label>
+        <input type="text" id="pais" placeholder="Ej: Colombia" class="w-full p-2 border-2 rounded-lg outline-none focus:border-green-600 font-bold">
+    </div>
+</div>
