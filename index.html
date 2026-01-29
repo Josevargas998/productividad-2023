@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema Productividad UQ 2024</title>
+    <title>Sistema Productividad UQ 2024 - MEJORADO</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy, where } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
         const firebaseConfig = {
@@ -25,20 +25,23 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbyOa0PXFxIu4lnAjobGIZMJdtJbs4ULUHJU1mv8gnCvjstp-a3qfQO7wDD2HYT_lJs6yA/exec";
+        // URL DE TU APPS SCRIPT
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbxz0ZR9wQeCzX8Z5dHSQbV0QPYBvsJ2akQMf2pMQYxU2lYU5-klM3D9bsEy9YN15ON7VQ/exec";
 
-        let rolActual = ''; 
+        let rolActual = '';
+        let idRegistroActual = null;
 
         const CONTRASEÑAS = {
             'JOSE': 'jose2026',
             'LINA': 'lina2026'
         };
 
+        // ==================== LOGIN ====================
         window.intentarLogin = (rol) => {
             const password = document.getElementById(`password-${rol.toLowerCase()}`).value;
             
             if (!password) {
-                alert("⚠️ Por favor ingrese la contraseña");
+                alert("⚠️ Ingrese la contraseña");
                 return;
             }
             
@@ -58,6 +61,7 @@
                 document.getElementById('panel-jose').classList.remove('hidden');
                 document.getElementById('header-title').innerText = "SEGUIMIENTO DE SOLICITUDES (JOSÉ)";
                 document.getElementById('header-bg').classList.add('bg-[#003d2b]');
+                cambiarCategoria(); // Inicializar campos
             } else {
                 document.getElementById('panel-lina').classList.remove('hidden');
                 document.getElementById('header-title').innerText = "COMPILADO Y LIQUIDACIÓN (LINA)";
@@ -66,21 +70,16 @@
             }
         }
 
-        // CAMPOS ESPECÍFICOS PARA JOSÉ (SEGUIMIENTO)
+        // ==================== JOSÉ - SOLO SEGUIMIENTO ====================
         window.cambiarCategoria = () => {
             const cat = document.getElementById('categoria').value;
-            const container = document.getElementById('campos-especificos');
+            const container = document.getElementById('campos-jose-especificos');
             const inputClass = "w-full p-2 border border-gray-300 rounded focus:border-green-600 outline-none";
             const labelClass = "block text-xs font-bold text-gray-500 uppercase mb-1";
             let html = '';
 
-            if (cat === "Artículos Indexados") {
-                html = `<div class="grid grid-cols-2 gap-4">
-                    <div><label class="${labelClass}">Nombre del Artículo</label><input type="text" id="nombre_articulo" class="${inputClass}"></div>
-                    <div><label class="${labelClass}">Título de la Revista</label><input type="text" id="titulo_revista" class="${inputClass}"></div>
-                </div>`;
-            
-            } else if (cat === "Artículos No Indexados") {
+            // JOSÉ SOLO VE SUS CAMPOS ESPECÍFICOS
+            if (cat === "Artículos Indexados" || cat === "Artículos No Indexados") {
                 html = `<div class="grid grid-cols-2 gap-4">
                     <div><label class="${labelClass}">Nombre del Artículo</label><input type="text" id="nombre_articulo" class="${inputClass}"></div>
                     <div><label class="${labelClass}">Título de la Revista</label><input type="text" id="titulo_revista" class="${inputClass}"></div>
@@ -96,29 +95,35 @@
                 html = `<div class="grid grid-cols-2 gap-4">
                     <div><label class="${labelClass}">Título del Trabajo Premiado</label><input type="text" id="titulo_trabajo_premiado" class="${inputClass}"></div>
                     <div><label class="${labelClass}">Premio Otorgado</label><input type="text" id="premio_otorgado" class="${inputClass}"></div>
-                    <div><label class="${labelClass}">Fecha del Premio</label><input type="date" id="fecha_premio" class="${inputClass}"></div>
+                    <div class="col-span-2"><label class="${labelClass}">Fecha del Premio</label><input type="date" id="fecha_premio" class="${inputClass}"></div>
                 </div>`;
             
             } else if (cat === "Software") {
-                html = `<div><label class="${labelClass}">Título del Software</label><input type="text" id="titulo_software" class="${inputClass}"></div>
-                        <div class="mt-3"><label class="${labelClass}">Concepto Comité Técnico</label>
+                html = `<div class="grid grid-cols-2 gap-4">
+                    <div><label class="${labelClass}">Título del Software</label><input type="text" id="titulo_software" class="${inputClass}"></div>
+                    <div><label class="${labelClass}">Concepto Comité Técnico</label>
                         <select id="concepto_comite" class="${inputClass}">
                             <option value="">Pendiente</option>
                             <option value="SI">SI - Aprobado</option>
                             <option value="NO">NO - Rechazado</option>
-                        </select></div>`;
+                        </select>
+                    </div>
+                </div>`;
             
             } else if (cat === "Patente") {
                 html = `<div><label class="${labelClass}">Título de la Patente</label><input type="text" id="titulo_patente" class="${inputClass}"></div>`;
             
             } else if (cat === "Obra Artística" || cat === "Producción Audiovisual") {
-                html = `<div><label class="${labelClass}">Título de la Obra</label><input type="text" id="titulo_obra" class="${inputClass}"></div>
-                        <div class="mt-3"><label class="${labelClass}">Soportes Verificados</label>
+                html = `<div class="grid grid-cols-2 gap-4">
+                    <div><label class="${labelClass}">Título de la Obra</label><input type="text" id="titulo_obra" class="${inputClass}"></div>
+                    <div><label class="${labelClass}">Soportes Verificados</label>
                         <select id="soportes_ok" class="${inputClass}">
                             <option value="">Pendiente</option>
                             <option value="OK">OK - Verificado</option>
                             <option value="INCOMPLETO">Incompleto</option>
-                        </select></div>`;
+                        </select>
+                    </div>
+                </div>`;
             
             } else if (cat === "Ponencias") {
                 html = `<div><label class="${labelClass}">Título de la Ponencia</label><input type="text" id="titulo_ponencia" class="${inputClass}"></div>`;
@@ -172,7 +177,7 @@
             container.innerHTML = html;
         };
 
-        // GUARDAR SOLICITUD (JOSÉ - SEGUIMIENTO)
+        // JOSÉ: GUARDAR SOLICITUD (SOLO SUS DATOS)
         document.getElementById('form-jose').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn-jose');
@@ -181,8 +186,9 @@
 
             const categoria = document.getElementById('categoria').value;
             
+            // JOSÉ SOLO ENVÍA SUS DATOS
             const registro = {
-                // DATOS JOSÉ (SEGUIMIENTO)
+                // DATOS BÁSICOS (JOSÉ)
                 anio: "2024",
                 semestre: document.getElementById('semestre').value,
                 categoria: categoria,
@@ -194,7 +200,7 @@
                 observaciones_jose: document.getElementById('observaciones_jose').value,
                 estado_ciarp: document.getElementById('estado_inicial').value,
                 
-                // Campos específicos según categoría (JOSÉ)
+                // CAMPOS ESPECÍFICOS (SOLO JOSÉ)
                 nombre_articulo: document.getElementById('nombre_articulo')?.value || '',
                 titulo_revista: document.getElementById('titulo_revista')?.value || '',
                 profesor_solicitante: document.getElementById('profesor_solicitante')?.value || '',
@@ -216,45 +222,25 @@
                 categoria_actual: document.getElementById('categoria_actual')?.value || '',
                 categoria_solicitada: document.getElementById('categoria_solicitada')?.value || '',
                 
-                // CAMPOS LINA (COMPILADO - vacíos inicialmente)
-                modalidad: "",
-                tipo: "",
-                pais: "",
-                issn: "",
-                clasificacion_publindex: "",
-                editorial: "",
-                isbn: "",
-                anio_publicacion: "",
-                documento_id: "",
-                escolaridad: "",
-                categoria_docente: "",
-                dedicacion: "",
-                facultad: "",
-                puntaje_eval1: 0,
-                puntaje_eval2: 0,
-                puntaje_promedio: 0,
-                puntaje_asignado: 0,
-                num_autores: 0,
-                universidades_coautores: "",
-                acta_ciarp: "",
-                resolucion: "",
-                observaciones_lina: "",
-                fecha_creacion: new Date().toISOString()
+                // NOTA: JOSÉ NO ENVÍA NINGÚN CAMPO DE LINA
             };
 
             try {
+                // Guardar en Firebase
                 await addDoc(collection(db, 'registros_2024'), registro);
                 console.log('✅ Guardado en Firebase');
                 
-                await fetch(urlAppsScript, { 
+                // Sincronizar con Google Sheets (SOLO datos José)
+                const response = await fetch(urlAppsScript, {
                     method: 'POST',
                     body: JSON.stringify(registro),
-                    mode: 'no-cors',
                     headers: { 'Content-Type': 'application/json' }
                 });
                 
-                console.log('✅ Sincronizado con Drive');
-                alert("✅ Solicitud Registrada en Seguimiento");
+                const result = await response.json();
+                console.log('✅ Google Sheets:', result);
+                
+                alert("✅ Solicitud registrada en SEGUIMIENTO");
                 e.target.reset();
                 cambiarCategoria();
                 
@@ -267,18 +253,18 @@
             }
         });
 
-        // LÓGICA LINA (COMPILADO)
+        // ==================== LINA - TODO EL COMPILADO ====================
         async function cargarPendientesLina() {
             const tbody = document.getElementById('tabla-pendientes');
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center p-4 text-gray-500">Cargando...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4 text-gray-500">Cargando...</td></tr>';
             
-            const q = query(collection(db, 'registros_2024'), orderBy('fecha_creacion', 'desc'));
+            const q = query(collection(db, 'registros_2024'), orderBy('fecha_recibido', 'desc'));
             const snapshot = await getDocs(q);
             
             tbody.innerHTML = '';
             
             if (snapshot.empty) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center p-4 text-gray-400">No hay solicitudes</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center p-4 text-gray-400">No hay solicitudes pendientes</td></tr>';
                 return;
             }
             
@@ -288,29 +274,40 @@
                 tr.className = "border-b hover:bg-blue-50 cursor-pointer transition";
                 tr.onclick = () => abrirModalEvaluacion(docSnap.id, d);
                 
-                let estadoColor = d.estado_ciarp === "Aprobado" ? "text-green-600" : 
-                                 d.estado_ciarp === "Negado" ? "text-red-600" : "text-yellow-600";
+                let estadoColor = d.estado_ciarp === "Aprobado" ? "bg-green-100 text-green-800" : 
+                                 d.estado_ciarp === "Negado" ? "bg-red-100 text-red-800" : "bg-yellow-100 text-yellow-800";
+                
+                let puntajeColor = d.puntaje_asignado > 0 ? "bg-green-600 text-white" : "bg-gray-200 text-gray-700";
 
                 tr.innerHTML = `
+                    <td class="p-3 text-sm font-mono">${docSnap.id.substring(0, 8)}</td>
                     <td class="p-3 text-sm">${d.semestre || ''}-${d.anio || '2024'}</td>
-                    <td class="p-3 text-sm">${d.fecha_recibido || 'N/A'}</td>
                     <td class="p-3 text-sm font-bold">${d.autor}</td>
                     <td class="p-3 text-sm">${d.titulo_producto}</td>
                     <td class="p-3 text-sm">${d.categoria}</td>
-                    <td class="p-3 text-sm ${estadoColor} font-bold">${d.estado_ciarp || 'Pendiente'}</td>
-                    <td class="p-3 text-sm text-center font-bold ${d.puntaje_asignado > 0 ? 'text-green-700' : 'text-gray-400'}">${d.puntaje_asignado || '-'}</td>
+                    <td class="p-3 text-sm"><span class="px-2 py-1 rounded text-xs font-bold ${estadoColor}">${d.estado_ciarp || 'Pendiente'}</span></td>
+                    <td class="p-3 text-sm text-center">
+                        <span class="px-3 py-1 rounded-full text-sm font-bold ${puntajeColor}">
+                            ${d.puntaje_asignado > 0 ? d.puntaje_asignado : 'Sin evaluar'}
+                        </span>
+                    </td>
+                    <td class="p-3 text-sm text-center">
+                        <button class="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm">
+                            Evaluar
+                        </button>
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        let idRegistroActual = null;
-
+        // LINA: ABRIR MODAL CON TODA LA INFORMACIÓN
         window.abrirModalEvaluacion = (id, data) => {
             idRegistroActual = id;
             document.getElementById('modal-evaluacion').classList.remove('hidden');
             
-            // Datos de José (Seguimiento)
+            // ========== SECCIÓN JOSÉ (SOLO LECTURA) ==========
+            document.getElementById('info-id').innerText = id.substring(0, 8);
             document.getElementById('info-categoria').innerText = data.categoria;
             document.getElementById('info-titulo').innerText = data.titulo_producto;
             document.getElementById('info-autor').innerText = data.autor;
@@ -320,28 +317,24 @@
             document.getElementById('info-estado-jose').innerText = data.estado_ciarp || 'Pendiente';
             document.getElementById('info-obs-jose').innerText = data.observaciones_jose || 'Sin observaciones';
             
-            // Mostrar campos específicos según categoría
-            mostrarCamposEspecificosJose(data);
+            // Mostrar campos específicos de José
+            mostrarCamposJoseReadonly(data);
             
-            // Campos editables por Lina (Compilado)
-            document.getElementById('edit-modalidad').value = data.modalidad || "";
-            document.getElementById('edit-tipo').value = data.tipo || "";
-            document.getElementById('edit-pais').value = data.pais || "";
-            document.getElementById('edit-issn').value = data.issn || "";
-            document.getElementById('edit-clasificacion').value = data.clasificacion_publindex || "";
-            document.getElementById('edit-editorial').value = data.editorial || "";
-            document.getElementById('edit-isbn').value = data.isbn || "";
-            document.getElementById('edit-anio-pub').value = data.anio_publicacion || "";
+            // ========== SECCIÓN LINA (EDITABLES) ==========
+            // Datos del docente
             document.getElementById('edit-documento').value = data.documento_id || "";
             document.getElementById('edit-escolaridad').value = data.escolaridad || "";
             document.getElementById('edit-categoria-doc').value = data.categoria_docente || "";
             document.getElementById('edit-dedicacion').value = data.dedicacion || "";
             document.getElementById('edit-facultad').value = data.facultad || "";
+            
+            // Campos específicos según categoría
+            cargarCamposLinaEspecificos(data);
+            
+            // Evaluación
             document.getElementById('edit-puntaje-eval1').value = data.puntaje_eval1 || 0;
             document.getElementById('edit-puntaje-eval2').value = data.puntaje_eval2 || 0;
-            document.getElementById('edit-num-autores').value = data.num_autores || 0;
-            document.getElementById('edit-universidades').value = data.universidades_coautores || "";
-            document.getElementById('edit-puntaje').value = data.puntaje_asignado || 0;
+            document.getElementById('edit-puntaje-asignado').value = data.puntaje_asignado || 0;
             document.getElementById('edit-acta').value = data.acta_ciarp || "";
             document.getElementById('edit-resolucion').value = data.resolucion || "";
             document.getElementById('edit-obs-lina').value = data.observaciones_lina || "";
@@ -349,43 +342,134 @@
             calcularPromedio();
         };
 
-        function mostrarCamposEspecificosJose(data) {
-            const container = document.getElementById('campos-especificos-jose');
-            let html = '';
+        function mostrarCamposJoseReadonly(data) {
+            const container = document.getElementById('campos-jose-readonly');
+            let html = '<div class="space-y-2">';
             
             if (data.nombre_articulo) {
-                html += `<div><span class="font-bold">Nombre Artículo:</span> ${data.nombre_articulo}</div>`;
+                html += `<div><span class="font-bold text-gray-600">Artículo:</span> ${data.nombre_articulo}</div>`;
             }
             if (data.titulo_revista) {
-                html += `<div><span class="font-bold">Revista:</span> ${data.titulo_revista}</div>`;
+                html += `<div><span class="font-bold text-gray-600">Revista:</span> ${data.titulo_revista}</div>`;
+            }
+            if (data.profesor_solicitante) {
+                html += `<div><span class="font-bold text-gray-600">Solicitante:</span> ${data.profesor_solicitante}</div>`;
             }
             if (data.area_conocimiento) {
-                html += `<div><span class="font-bold">Área Conocimiento:</span> ${data.area_conocimiento}</div>`;
+                html += `<div><span class="font-bold text-gray-600">Área:</span> ${data.area_conocimiento}</div>`;
             }
             if (data.premio_otorgado) {
-                html += `<div><span class="font-bold">Premio:</span> ${data.premio_otorgado}</div>`;
-                html += `<div><span class="font-bold">Fecha Premio:</span> ${data.fecha_premio}</div>`;
+                html += `<div><span class="font-bold text-gray-600">Premio:</span> ${data.premio_otorgado} (${data.fecha_premio || 'N/A'})</div>`;
             }
             if (data.concepto_comite) {
-                html += `<div><span class="font-bold">Comité Técnico:</span> <span class="font-bold ${data.concepto_comite === 'SI' ? 'text-green-600' : 'text-red-600'}">${data.concepto_comite}</span></div>`;
+                html += `<div><span class="font-bold text-gray-600">Comité Técnico:</span> <span class="${data.concepto_comite === 'SI' ? 'text-green-600' : 'text-red-600'} font-bold">${data.concepto_comite}</span></div>`;
             }
             if (data.soportes_ok) {
-                html += `<div><span class="font-bold">Soportes:</span> <span class="font-bold text-blue-600">${data.soportes_ok}</span></div>`;
-            }
-            if (data.autor_estudiante) {
-                html += `<div><span class="font-bold">Estudiante:</span> ${data.autor_estudiante}</div>`;
+                html += `<div><span class="font-bold text-gray-600">Soportes:</span> <span class="text-blue-600 font-bold">${data.soportes_ok}</span></div>`;
             }
             if (data.tipo_trabajo) {
-                html += `<div><span class="font-bold">Tipo Trabajo:</span> ${data.tipo_trabajo}</div>`;
-            }
-            if (data.categoria_actual) {
-                html += `<div><span class="font-bold">Categoría Actual:</span> ${data.categoria_actual} → ${data.categoria_solicitada || ''}</div>`;
+                html += `<div><span class="font-bold text-gray-600">Ascenso:</span> ${data.categoria_actual || ''} → ${data.categoria_solicitada || ''}</div>`;
             }
             
+            html += '</div>';
             container.innerHTML = html || '<p class="text-gray-500 text-sm italic">Sin información adicional</p>';
         }
 
-        window.cerrarModal = () => document.getElementById('modal-evaluacion').classList.add('hidden');
+        function cargarCamposLinaEspecificos(data) {
+            const container = document.getElementById('campos-lina-especificos');
+            let html = '';
+            
+            switch(data.categoria) {
+                case "Artículos Indexados":
+                    html = `
+                        <div class="grid grid-cols-3 gap-3 mb-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">MODALIDAD</label>
+                                <select id="edit-modalidad" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
+                                    <option value="">N/A</option>
+                                    <option ${data.modalidad === 'Full paper' ? 'selected' : ''}>Full paper</option>
+                                    <option ${data.modalidad === 'Short paper' ? 'selected' : ''}>Short paper</option>
+                                    <option ${data.modalidad === 'Poster' ? 'selected' : ''}>Poster</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">TIPO</label>
+                                <select id="edit-tipo" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
+                                    <option value="">N/A</option>
+                                    <option ${data.tipo === 'Nacional' ? 'selected' : ''}>Nacional</option>
+                                    <option ${data.tipo === 'Internacional' ? 'selected' : ''}>Internacional</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">PAÍS</label>
+                                <input type="text" id="edit-pais" value="${data.pais || ''}" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">ISSN</label>
+                                <input type="text" id="edit-issn" value="${data.issn || ''}" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">CLASIFICACIÓN</label>
+                                <select id="edit-clasificacion" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
+                                    <option value="">N/A</option>
+                                    <option ${data.clasificacion_publindex === 'A1' ? 'selected' : ''}>A1</option>
+                                    <option ${data.clasificacion_publindex === 'A2' ? 'selected' : ''}>A2</option>
+                                    <option ${data.clasificacion_publindex === 'B' ? 'selected' : ''}>B</option>
+                                    <option ${data.clasificacion_publindex === 'C' ? 'selected' : ''}>C</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">EDITORIAL</label>
+                                <input type="text" id="edit-editorial" value="${data.editorial || ''}" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">AÑO PUBLICACIÓN</label>
+                                <input type="number" id="edit-anio-pub" value="${data.anio_publicacion || ''}" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">NÚM. AUTORES</label>
+                                <input type="number" id="edit-num-autores" value="${data.num_autores || 0}" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">UNIV. COAUTORES</label>
+                                <input type="text" id="edit-universidades" value="${data.universidades_coautores || ''}" placeholder="UQ, UdeA..." class="w-full border-2 border-blue-200 p-2 rounded text-sm">
+                            </div>
+                        </div>
+                    `;
+                    break;
+                    
+                case "Libro Investigación":
+                case "Libro Texto":
+                case "Libro Ensayo":
+                    html = `
+                        <div class="grid grid-cols-3 gap-3 mb-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">ISBN</label>
+                                <input type="text" id="edit-isbn" value="${data.isbn || ''}" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">AÑO PUBLICACIÓN</label>
+                                <input type="number" id="edit-anio-pub" value="${data.anio_publicacion || ''}" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">EDITORIAL</label>
+                                <input type="text" id="edit-editorial" value="${data.editorial || ''}" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
+                            </div>
+                        </div>
+                    `;
+                    break;
+                    
+                default:
+                    html = '<p class="text-gray-500 text-sm italic">Sin campos específicos adicionales</p>';
+            }
+            
+            container.innerHTML = html;
+        }
+
+        window.cerrarModal = () => {
+            document.getElementById('modal-evaluacion').classList.add('hidden');
+            idRegistroActual = null;
+        };
 
         window.calcularPromedio = () => {
             const eval1 = parseFloat(document.getElementById('edit-puntaje-eval1').value) || 0;
@@ -394,22 +478,31 @@
             document.getElementById('puntaje-promedio-display').innerText = promedio.toFixed(2);
         };
 
+        // LINA: GUARDAR COMPILADO COMPLETO
         window.guardarEvaluacion = async () => {
             if(!idRegistroActual) return;
+            
+            const btn = document.getElementById('btn-guardar-lina');
+            btn.innerText = "GUARDANDO...";
+            btn.disabled = true;
+            
+            // Obtener datos originales para título y autor
+            const docRef = doc(db, 'registros_2024', idRegistroActual);
+            const docSnap = await getDocs(query(collection(db, 'registros_2024'), where("__name__", "==", idRegistroActual)));
+            const dataOriginal = docSnap.docs[0]?.data() || {};
             
             const eval1 = parseFloat(document.getElementById('edit-puntaje-eval1').value) || 0;
             const eval2 = parseFloat(document.getElementById('edit-puntaje-eval2').value) || 0;
             const promedio = (eval1 + eval2) / 2;
             
+            // LINA ENVÍA TODOS LOS DATOS (INCLUYENDO LOS DE JOSÉ PARA IDENTIFICACIÓN)
             const actualizacion = {
-                modalidad: document.getElementById('edit-modalidad').value,
-                tipo: document.getElementById('edit-tipo').value,
-                pais: document.getElementById('edit-pais').value,
-                issn: document.getElementById('edit-issn').value,
-                clasificacion_publindex: document.getElementById('edit-clasificacion').value,
-                editorial: document.getElementById('edit-editorial').value,
-                isbn: document.getElementById('edit-isbn').value,
-                anio_publicacion: document.getElementById('edit-anio-pub').value,
+                // Datos de José (para identificación)
+                titulo_producto: dataOriginal.titulo_producto || "",
+                autor: dataOriginal.autor || "",
+                categoria: dataOriginal.categoria || "",
+                
+                // Datos de Lina (compilado)
                 documento_id: document.getElementById('edit-documento').value,
                 escolaridad: document.getElementById('edit-escolaridad').value,
                 categoria_docente: document.getElementById('edit-categoria-doc').value,
@@ -418,18 +511,49 @@
                 puntaje_eval1: eval1,
                 puntaje_eval2: eval2,
                 puntaje_promedio: promedio,
-                num_autores: parseInt(document.getElementById('edit-num-autores').value) || 0,
-                universidades_coautores: document.getElementById('edit-universidades').value,
-                puntaje_asignado: parseFloat(document.getElementById('edit-puntaje').value) || 0,
+                puntaje_asignado: parseFloat(document.getElementById('edit-puntaje-asignado').value) || 0,
                 acta_ciarp: document.getElementById('edit-acta').value,
                 resolucion: document.getElementById('edit-resolucion').value,
-                observaciones_lina: document.getElementById('edit-obs-lina').value
+                observaciones_lina: document.getElementById('edit-obs-lina').value,
+                
+                // Campos específicos según categoría
+                modalidad: document.getElementById('edit-modalidad')?.value || "",
+                tipo: document.getElementById('edit-tipo')?.value || "",
+                pais: document.getElementById('edit-pais')?.value || "",
+                issn: document.getElementById('edit-issn')?.value || "",
+                clasificacion_publindex: document.getElementById('edit-clasificacion')?.value || "",
+                editorial: document.getElementById('edit-editorial')?.value || "",
+                anio_publicacion: document.getElementById('edit-anio-pub')?.value || "",
+                isbn: document.getElementById('edit-isbn')?.value || "",
+                num_autores: parseInt(document.getElementById('edit-num-autores')?.value) || 0,
+                universidades_coautores: document.getElementById('edit-universidades')?.value || ""
             };
 
-            await updateDoc(doc(db, 'registros_2024', idRegistroActual), actualizacion);
-            alert("✅ Compilado Guardado");
-            cerrarModal();
-            cargarPendientesLina();
+            try {
+                // Actualizar en Firebase
+                await updateDoc(docRef, actualizacion);
+                
+                // Sincronizar con Google Sheets (LINA envía todo)
+                const response = await fetch(urlAppsScript, {
+                    method: 'POST',
+                    body: JSON.stringify(actualizacion),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await response.json();
+                console.log('✅ Google Sheets actualizado:', result);
+                
+                alert("✅ Compilado guardado correctamente");
+                cerrarModal();
+                cargarPendientesLina();
+                
+            } catch (err) {
+                console.error('❌ Error:', err);
+                alert("❌ Error al guardar: " + err.message);
+            } finally {
+                btn.innerText = "💾 GUARDAR EN COMPILADO";
+                btn.disabled = false;
+            }
         };
 
         window.descargarExcel = async () => {
@@ -438,6 +562,7 @@
             snapshot.forEach(doc => {
                 const d = doc.data();
                 datos.push({
+                    "ID": doc.id.substring(0, 8),
                     "Año": d.anio,
                     "Semestre": d.semestre,
                     "Categoría": d.categoria,
@@ -455,74 +580,90 @@
                     "Puntaje Eval 2": d.puntaje_eval2,
                     "Promedio": d.puntaje_promedio,
                     "Puntaje Asignado": d.puntaje_asignado,
-                    "Núm. Autores": d.num_autores,
-                    "Acta": d.acta_ciarp,
-                    "Resolución": d.resolucion
+                    "Acta CIARP": d.acta_ciarp,
+                    "Resolución": d.resolucion,
+                    "Observaciones Lina": d.observaciones_lina
                 });
             });
+            
             const ws = XLSX.utils.json_to_sheet(datos);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Compilado 2024");
-            XLSX.writeFile(wb, `Compilado_Productividad_2024_${new Date().toISOString().split('T')[0]}.xlsx`);
+            XLSX.writeFile(wb, `Compilado_Productividad_${new Date().toISOString().split('T')[0]}.xlsx`);
         };
 
-        signInAnonymously(auth);
-        window.onload = () => { cambiarCategoria(); };
+        // Inicializar Firebase y sistema
+        signInAnonymously(auth).then(() => {
+            console.log('✅ Firebase conectado');
+        }).catch(err => {
+            console.error('❌ Error Firebase:', err);
+        });
+        
+        window.onload = () => {
+            console.log('✅ Sistema cargado');
+        };
     </script>
 </head>
 <body class="bg-gray-100 font-sans h-screen flex flex-col">
-
-    <div id="header-bg" class="bg-gray-800 text-white p-4 shadow-lg flex justify-between items-center transition-colors">
+    <!-- HEADER -->
+    <div id="header-bg" class="text-white p-4 shadow-lg flex justify-between items-center transition-colors">
         <div>
             <h1 id="header-title" class="text-xl font-black tracking-wider">SISTEMA PRODUCTIVIDAD UQ</h1>
-            <p class="text-[10px] opacity-75">Universidad del Quindío - 2024</p>
+            <p class="text-[10px] opacity-75">Universidad del Quindío - 2024 - VERSIÓN MEJORADA</p>
         </div>
         <button onclick="location.reload()" class="text-xs bg-white/20 px-3 py-1 rounded hover:bg-white/40">Cerrar Sesión</button>
     </div>
 
-    <!-- LOGIN -->
+    <!-- PANTALLA LOGIN -->
     <div id="pantalla-login" class="flex-1 flex items-center justify-center p-4">
         <div class="bg-white p-10 rounded-2xl shadow-2xl text-center max-w-md w-full">
             <div class="mb-8">
                 <div class="text-4xl mb-3">🔐</div>
                 <h2 class="text-2xl font-bold text-gray-700">Acceso al Sistema</h2>
-                <p class="text-xs text-gray-500 mt-2">Universidad del Quindío</p>
+                <p class="text-xs text-gray-500 mt-2">Universidad del Quindío - CIARP</p>
             </div>
             
             <div class="bg-green-50 p-5 rounded-xl mb-4 border-2 border-green-200">
                 <div class="font-black text-lg text-green-800 mb-3">👤 JOSÉ</div>
-                <p class="text-xs text-gray-600 mb-3">Seguimiento de Solicitudes</p>
+                <p class="text-xs text-gray-600 mb-3">Solo ingresa datos de SEGUIMIENTO</p>
                 <input type="password" id="password-jose" placeholder="Contraseña" 
                     class="w-full p-3 border-2 border-green-300 rounded-lg mb-3 focus:outline-none focus:border-green-600"
                     onkeypress="if(event.key==='Enter') intentarLogin('JOSE')">
                 <button onclick="intentarLogin('JOSE')" 
                     class="w-full bg-[#003d2b] hover:bg-green-900 text-white p-3 rounded-lg font-bold transition">
-                    INGRESAR
+                    INGRESAR COMO JOSÉ
                 </button>
             </div>
 
             <div class="bg-blue-50 p-5 rounded-xl border-2 border-blue-200">
                 <div class="font-black text-lg text-blue-800 mb-3">👤 LINA</div>
-                <p class="text-xs text-gray-600 mb-3">Compilado y Liquidación</p>
+                <p class="text-xs text-gray-600 mb-3">Ve y edita TODO el compilado</p>
                 <input type="password" id="password-lina" placeholder="Contraseña" 
                     class="w-full p-3 border-2 border-blue-300 rounded-lg mb-3 focus:outline-none focus:border-blue-600"
                     onkeypress="if(event.key==='Enter') intentarLogin('LINA')">
                 <button onclick="intentarLogin('LINA')" 
                     class="w-full bg-blue-800 hover:bg-blue-900 text-white p-3 rounded-lg font-bold transition">
-                    INGRESAR
+                    INGRESAR COMO LINA
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- PANEL JOSÉ (SEGUIMIENTO) -->
+    <!-- PANEL JOSÉ (SOLO SEGUIMIENTO) -->
     <div id="panel-jose" class="hidden flex-1 overflow-auto p-4 md:p-8">
         <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
             <div class="bg-green-50 p-4 border-b">
-                <h3 class="text-green-800 font-bold text-lg">📝 Registro de Seguimiento</h3>
-                <p class="text-xs text-gray-600 mt-1">Datos iniciales de la solicitud</p>
+                <div class="flex items-center gap-3">
+                    <div class="bg-[#003d2b] text-white p-2 rounded-lg">👤</div>
+                    <div>
+                        <h3 class="text-green-800 font-bold text-lg">📝 REGISTRO DE SEGUIMIENTO (JOSÉ)</h3>
+                        <p class="text-xs text-gray-600">Solo llena los campos de seguimiento inicial</p>
+                    </div>
+                </div>
             </div>
+            
             <form id="form-jose" class="p-6 space-y-5">
+                <!-- DATOS BÁSICOS -->
                 <div class="grid grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">SEMESTRE</label>
@@ -538,6 +679,7 @@
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">CATEGORÍA</label>
                         <select id="categoria" onchange="cambiarCategoria()" required class="w-full border-2 p-2 rounded font-bold text-xs">
+                            <option value="">Seleccionar categoría</option>
                             <option value="Artículos Indexados">Artículos Indexados</option>
                             <option value="Artículos No Indexados">Artículos No Indexados</option>
                             <option value="Libro Investigación">Libro Investigación</option>
@@ -548,7 +690,6 @@
                             <option value="Patente">Patente</option>
                             <option value="Obra Artística">Obra Artística</option>
                             <option value="Producción Audiovisual">Producción Audiovisual</option>
-                            <option value="Producción Técnica">Producción Técnica</option>
                             <option value="Ponencias">Ponencias</option>
                             <option value="Tesis">Tesis (Maestría/Doctorado)</option>
                             <option value="Títulos">Títulos</option>
@@ -557,24 +698,32 @@
                     </div>
                 </div>
 
+                <!-- TÍTULO Y AUTOR -->
                 <div>
                     <label class="block text-xs font-bold text-gray-600 mb-1">TÍTULO DEL PRODUCTO</label>
-                    <input type="text" id="titulo_producto" required class="w-full border-2 p-2 rounded">
+                    <input type="text" id="titulo_producto" required class="w-full border-2 p-2 rounded" placeholder="Nombre completo del producto académico">
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">AUTOR/DOCENTE</label>
-                        <input type="text" id="autor" required class="w-full border-2 p-2 rounded">
+                        <input type="text" id="autor" required class="w-full border-2 p-2 rounded" placeholder="Nombre completo">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">PROGRAMA ACADÉMICO</label>
-                        <input type="text" id="programa" required class="w-full border-2 p-2 rounded">
+                        <input type="text" id="programa" required class="w-full border-2 p-2 rounded" placeholder="Programa al que pertenece">
                     </div>
                 </div>
 
-                <div id="campos-especificos" class="bg-gray-50 p-4 rounded border-2 border-dashed border-gray-300"></div>
+                <!-- CAMPOS ESPECÍFICOS DE JOSÉ -->
+                <div class="bg-green-50 p-4 rounded border-2 border-green-200">
+                    <p class="text-xs font-bold text-green-800 mb-2">📋 CAMPOS ESPECÍFICOS SEGÚN CATEGORÍA</p>
+                    <div id="campos-jose-especificos">
+                        <!-- Se carga dinámicamente -->
+                    </div>
+                </div>
 
+                <!-- ESTADO Y OBSERVACIONES -->
                 <div class="grid grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs font-bold text-gray-600 mb-1">DOC. COMPLETA</label>
@@ -592,42 +741,50 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-600 mb-1">OBSERVACIONES</label>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">OBSERVACIONES JOSÉ</label>
                         <input type="text" id="observaciones_jose" placeholder="Opcional" class="w-full border-2 p-2 rounded">
                     </div>
                 </div>
 
-                <button type="submit" id="btn-jose" class="w-full bg-[#003d2b] text-white py-3 rounded-lg font-bold hover:bg-black transition">
+                <button type="submit" id="btn-jose" class="w-full bg-[#003d2b] text-white py-3 rounded-lg font-bold hover:bg-black transition shadow-lg">
                     ✅ REGISTRAR EN SEGUIMIENTO
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- PANEL LINA (COMPILADO) -->
+    <!-- PANEL LINA (TODO EL COMPILADO) -->
     <div id="panel-lina" class="hidden flex-1 overflow-auto p-4 md:p-8">
         <div class="max-w-full mx-auto space-y-6 px-4">
+            <!-- HEADER LINA -->
             <div class="flex justify-between items-center">
                 <div>
-                    <h2 class="text-2xl font-bold text-blue-900">📊 Compilado de Productividad</h2>
-                    <p class="text-sm text-gray-600">Liquidación y verificación técnica</p>
+                    <div class="flex items-center gap-3">
+                        <div class="bg-blue-900 text-white p-2 rounded-lg">👤</div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-blue-900">📊 COMPILADO DE PRODUCTIVIDAD (LINA)</h2>
+                            <p class="text-sm text-gray-600">Ve y edita toda la información - Liquidación completa</p>
+                        </div>
+                    </div>
                 </div>
                 <button onclick="descargarExcel()" class="bg-green-600 text-white px-5 py-2 rounded-lg shadow hover:bg-green-700 font-bold flex items-center gap-2">
                     <span>📥</span> Exportar Excel
                 </button>
             </div>
 
+            <!-- TABLA DE SOLICITUDES -->
             <div class="bg-white rounded-xl shadow-xl overflow-hidden overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-blue-100 text-blue-900 text-xs font-bold uppercase">
+                <table class="w-full min-w-[1000px]">
+                    <thead class="bg-blue-900 text-white text-xs font-bold uppercase">
                         <tr>
-                            <th class="p-3 text-left whitespace-nowrap">Período</th>
-                            <th class="p-3 text-left whitespace-nowrap">Fecha</th>
+                            <th class="p-3 text-left">ID</th>
+                            <th class="p-3 text-left">Período</th>
                             <th class="p-3 text-left">Docente</th>
                             <th class="p-3 text-left">Producto</th>
                             <th class="p-3 text-left">Categoría</th>
                             <th class="p-3 text-left">Estado</th>
                             <th class="p-3 text-center">Puntaje</th>
+                            <th class="p-3 text-center">Acción</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-pendientes"></tbody>
@@ -636,113 +793,80 @@
         </div>
     </div>
 
-    <!-- MODAL LINA (COMPILADO) -->
+    <!-- MODAL LINA (EVALUACIÓN COMPLETA) -->
     <div id="modal-evaluacion" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl my-8">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl my-8 max-h-[90vh] flex flex-col">
+            <!-- HEADER MODAL -->
             <div class="bg-blue-900 text-white p-4 flex justify-between items-center sticky top-0 z-10">
-                <div>
-                    <h3 class="font-bold text-lg">📊 Compilado y Liquidación</h3>
-                    <p class="text-xs opacity-80">Verificación técnica y asignación de puntaje</p>
+                <div class="flex items-center gap-3">
+                    <div class="bg-white/20 p-2 rounded-lg">📊</div>
+                    <div>
+                        <h3 class="font-bold text-lg">COMPILADO Y LIQUIDACIÓN COMPLETA</h3>
+                        <p class="text-xs opacity-80">Lina: Verifica y completa toda la información</p>
+                    </div>
                 </div>
                 <button onclick="cerrarModal()" class="text-3xl hover:text-gray-300">&times;</button>
             </div>
             
-            <div class="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
-                <!-- DATOS DE JOSÉ (SEGUIMIENTO) -->
-                <div class="bg-green-50 p-4 rounded-lg border-2 border-green-200">
-                    <p class="text-xs font-bold text-green-800 mb-3">📝 DATOS DE SEGUIMIENTO (JOSÉ)</p>
-                    <div class="grid grid-cols-4 gap-3 text-sm">
+            <!-- CONTENIDO MODAL -->
+            <div class="p-6 space-y-6 overflow-y-auto flex-1">
+                <!-- SECCIÓN 1: DATOS DE JOSÉ (SOLO LECTURA) -->
+                <div class="bg-green-50 p-5 rounded-lg border-2 border-green-200">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="bg-[#003d2b] text-white p-1 rounded">👤</div>
+                        <h4 class="font-bold text-green-800 text-lg">DATOS DE SEGUIMIENTO (JOSÉ)</h4>
+                        <span class="text-xs bg-green-200 text-green-800 px-2 py-1 rounded ml-auto">SOLO LECTURA</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-4 gap-4 text-sm">
+                        <div><span class="font-bold text-gray-600">ID:</span> <span id="info-id" class="font-mono bg-gray-100 px-2 py-1 rounded"></span></div>
                         <div><span class="font-bold text-gray-600">Categoría:</span> <span id="info-categoria" class="text-gray-900"></span></div>
-                        <div><span class="font-bold text-gray-600">Fecha:</span> <span id="info-fecha" class="text-gray-900"></span></div>
+                        <div><span class="font-bold text-gray-600">Fecha Recibido:</span> <span id="info-fecha" class="text-gray-900"></span></div>
                         <div><span class="font-bold text-gray-600">Doc. Completa:</span> <span id="info-doc" class="font-bold"></span></div>
-                        <div><span class="font-bold text-gray-600">Estado Inicial:</span> <span id="info-estado-jose" class="font-bold"></span></div>
-                        <div class="col-span-2"><span class="font-bold text-gray-600">Producto:</span> <span id="info-titulo" class="text-gray-900"></span></div>
+                        
+                        <div class="col-span-2"><span class="font-bold text-gray-600">Título:</span> <span id="info-titulo" class="text-gray-900"></span></div>
                         <div><span class="font-bold text-gray-600">Docente:</span> <span id="info-autor" class="text-gray-900"></span></div>
                         <div><span class="font-bold text-gray-600">Programa:</span> <span id="info-programa" class="text-gray-900"></span></div>
-                        <div class="col-span-4" id="campos-especificos-jose"></div>
-                        <div class="col-span-4"><span class="font-bold text-gray-600">Observaciones:</span> <span id="info-obs-jose" class="text-gray-600 italic"></span></div>
+                        
+                        <div class="col-span-4 border-t pt-3 mt-2">
+                            <span class="font-bold text-gray-600">Información Específica:</span>
+                            <div id="campos-jose-readonly" class="mt-2 p-3 bg-white rounded border"></div>
+                        </div>
+                        
+                        <div class="col-span-2"><span class="font-bold text-gray-600">Estado Inicial:</span> <span id="info-estado-jose" class="font-bold text-lg"></span></div>
+                        <div class="col-span-2"><span class="font-bold text-gray-600">Observaciones José:</span> <span id="info-obs-jose" class="text-gray-600 italic"></span></div>
                     </div>
                 </div>
 
-                <!-- DATOS COMPILADO (LINA) -->
-                <div class="bg-blue-50 p-4 rounded-lg">
-                    <p class="text-xs font-bold text-blue-900 mb-3">📋 INFORMACIÓN PARA COMPILADO</p>
-                    
-                    <!-- Detalles del Producto -->
-                    <div class="grid grid-cols-4 gap-4 mb-4">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">MODALIDAD</label>
-                            <select id="edit-modalidad" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
-                                <option value="">N/A</option>
-                                <option>Full paper</option>
-                                <option>Short paper</option>
-                                <option>Poster</option>
-                                <option>Review</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">TIPO</label>
-                            <select id="edit-tipo" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
-                                <option value="">N/A</option>
-                                <option>Nacional</option>
-                                <option>Internacional</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">PAÍS</label>
-                            <input type="text" id="edit-pais" placeholder="Colombia" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">AÑO PUBLICACIÓN</label>
-                            <input type="number" id="edit-anio-pub" placeholder="2024" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">ISSN</label>
-                            <input type="text" id="edit-issn" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">ISBN</label>
-                            <input type="text" id="edit-isbn" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">CLASIFICACIÓN/PUBLINDEX</label>
-                            <select id="edit-clasificacion" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
-                                <option value="">N/A</option>
-                                <option>A1</option>
-                                <option>A2</option>
-                                <option>B</option>
-                                <option>C</option>
-                                <option>D</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">EDITORIAL</label>
-                            <input type="text" id="edit-editorial" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
-                        </div>
+                <!-- SECCIÓN 2: DATOS DE LINA (EDITABLES) -->
+                <div class="bg-blue-50 p-5 rounded-lg border-2 border-blue-200">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="bg-blue-900 text-white p-1 rounded">👤</div>
+                        <h4 class="font-bold text-blue-900 text-lg">DATOS DE COMPILADO (LINA)</h4>
+                        <span class="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded ml-auto">EDITABLE</span>
                     </div>
-
-                    <!-- Información del Docente -->
-                    <div class="bg-white p-3 rounded mb-4">
-                        <p class="text-xs font-bold text-gray-700 mb-2">👤 DATOS DEL DOCENTE</p>
-                        <div class="grid grid-cols-5 gap-3">
+                    
+                    <!-- INFORMACIÓN DEL DOCENTE -->
+                    <div class="mb-6">
+                        <p class="text-sm font-bold text-gray-700 mb-3 border-b pb-2">👤 INFORMACIÓN DEL DOCENTE</p>
+                        <div class="grid grid-cols-5 gap-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-600 mb-1">DOC. IDENTIDAD</label>
-                                <input type="text" id="edit-documento" class="w-full border-2 border-gray-300 p-2 rounded text-sm">
+                                <input type="text" id="edit-documento" class="w-full border-2 border-blue-300 p-2 rounded text-sm">
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-600 mb-1">ESCOLARIDAD</label>
-                                <select id="edit-escolaridad" class="w-full border-2 border-gray-300 p-2 rounded text-sm">
+                                <select id="edit-escolaridad" class="w-full border-2 border-blue-300 p-2 rounded text-sm">
                                     <option value="">Seleccionar</option>
                                     <option>Pregrado</option>
                                     <option>Especialización</option>
                                     <option>Maestría</option>
                                     <option>Doctorado</option>
-                                    <option>Posdoctorado</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">CATEGORÍA</label>
-                                <select id="edit-categoria-doc" class="w-full border-2 border-gray-300 p-2 rounded text-sm">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">CATEGORÍA DOCENTE</label>
+                                <select id="edit-categoria-doc" class="w-full border-2 border-blue-300 p-2 rounded text-sm">
                                     <option value="">Seleccionar</option>
                                     <option>Auxiliar</option>
                                     <option>Asistente</option>
@@ -752,7 +876,7 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-600 mb-1">DEDICACIÓN</label>
-                                <select id="edit-dedicacion" class="w-full border-2 border-gray-300 p-2 rounded text-sm">
+                                <select id="edit-dedicacion" class="w-full border-2 border-blue-300 p-2 rounded text-sm">
                                     <option value="">Seleccionar</option>
                                     <option>TC</option>
                                     <option>MT</option>
@@ -761,65 +885,73 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-600 mb-1">FACULTAD</label>
-                                <input type="text" id="edit-facultad" class="w-full border-2 border-gray-300 p-2 rounded text-sm">
+                                <input type="text" id="edit-facultad" class="w-full border-2 border-blue-300 p-2 rounded text-sm">
                             </div>
                         </div>
                     </div>
-
-                    <!-- Coautoría -->
-                    <div class="grid grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">NÚMERO TOTAL DE AUTORES</label>
-                            <input type="number" id="edit-num-autores" class="w-full border-2 border-blue-200 p-2 rounded text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-600 mb-1">UNIVERSIDADES COAUTORES</label>
-                            <input type="text" id="edit-universidades" placeholder="UQ, UdeA, UniNorte..." class="w-full border-2 border-blue-200 p-2 rounded text-sm">
+                    
+                    <!-- CAMPOS ESPECÍFICOS LINA -->
+                    <div class="mb-6">
+                        <p class="text-sm font-bold text-gray-700 mb-3 border-b pb-2">📋 INFORMACIÓN ESPECÍFICA DEL PRODUCTO</p>
+                        <div id="campos-lina-especificos">
+                            <!-- Se carga dinámicamente según categoría -->
                         </div>
                     </div>
-
-                    <!-- Evaluación y Puntajes -->
-                    <div class="bg-yellow-50 p-3 rounded border-2 border-yellow-200">
-                        <p class="text-xs font-bold text-yellow-900 mb-2">⭐ EVALUACIÓN Y LIQUIDACIÓN</p>
-                        <div class="grid grid-cols-5 gap-3">
+                    
+                    <!-- EVALUACIÓN Y PUNTAJES -->
+                    <div class="bg-yellow-50 p-4 rounded-lg border-2 border-yellow-300 mb-6">
+                        <p class="text-sm font-bold text-yellow-900 mb-4 flex items-center gap-2">
+                            <span>⭐</span> EVALUACIÓN Y LIQUIDACIÓN DE PUNTAJES
+                        </p>
+                        <div class="grid grid-cols-5 gap-4">
                             <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">EVAL 1</label>
-                                <input type="number" step="0.1" id="edit-puntaje-eval1" oninput="calcularPromedio()" class="w-full border-2 border-yellow-300 p-2 rounded font-bold text-sm">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">PUNTAJE EVAL 1</label>
+                                <input type="number" step="0.1" id="edit-puntaje-eval1" oninput="calcularPromedio()" 
+                                       class="w-full border-2 border-yellow-400 p-2 rounded font-bold text-center text-lg">
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">EVAL 2</label>
-                                <input type="number" step="0.1" id="edit-puntaje-eval2" oninput="calcularPromedio()" class="w-full border-2 border-yellow-300 p-2 rounded font-bold text-sm">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">PUNTAJE EVAL 2</label>
+                                <input type="number" step="0.1" id="edit-puntaje-eval2" oninput="calcularPromedio()" 
+                                       class="w-full border-2 border-yellow-400 p-2 rounded font-bold text-center text-lg">
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-600 mb-1">PROMEDIO</label>
-                                <div class="w-full border-2 border-yellow-300 bg-yellow-100 p-2 rounded font-bold text-lg text-center" id="puntaje-promedio-display">0.00</div>
+                                <div class="w-full border-2 border-yellow-400 bg-yellow-100 p-2 rounded font-bold text-center text-2xl" 
+                                     id="puntaje-promedio-display">0.00</div>
                             </div>
                             <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">PUNTAJE FINAL *</label>
-                                <input type="number" step="0.1" id="edit-puntaje" class="w-full border-2 border-green-400 p-2 rounded font-bold text-lg text-green-700 text-center">
+                                <label class="block text-xs font-bold text-gray-600 mb-1">PUNTAJE FINAL</label>
+                                <input type="number" step="0.1" id="edit-puntaje-asignado" 
+                                       class="w-full border-2 border-green-500 bg-green-50 p-2 rounded font-bold text-center text-2xl text-green-700">
                             </div>
                             <div>
                                 <label class="block text-xs font-bold text-gray-600 mb-1">ACTA CIARP</label>
-                                <input type="text" id="edit-acta" placeholder="3-30/03/2024" class="w-full border-2 border-yellow-300 p-2 rounded text-sm">
+                                <input type="text" id="edit-acta" placeholder="Número de acta" 
+                                       class="w-full border-2 border-blue-300 p-2 rounded text-sm">
                             </div>
                         </div>
                     </div>
-
-                    <!-- Resolución y Observaciones -->
-                    <div class="grid grid-cols-2 gap-4 mt-4">
+                    
+                    <!-- RESOLUCIÓN Y OBSERVACIONES -->
+                    <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-gray-600 mb-1">RESOLUCIÓN</label>
-                            <input type="text" id="edit-resolucion" placeholder="R.R. No..." class="w-full border-2 border-blue-200 p-2 rounded text-sm">
+                            <input type="text" id="edit-resolucion" placeholder="R.R. No..." 
+                                   class="w-full border-2 border-blue-300 p-2 rounded text-sm">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-gray-600 mb-1">OBSERVACIONES TÉCNICAS (LINA)</label>
-                            <textarea id="edit-obs-lina" rows="2" class="w-full border-2 border-blue-200 p-2 rounded text-sm"></textarea>
+                            <textarea id="edit-obs-lina" rows="3" 
+                                      class="w-full border-2 border-blue-300 p-2 rounded text-sm"
+                                      placeholder="Observaciones para el compilado..."></textarea>
                         </div>
                     </div>
                 </div>
 
-                <button onclick="guardarEvaluacion()" class="w-full bg-blue-800 text-white py-3 rounded-lg font-bold hover:bg-blue-900 transition text-lg">
-                    💾 GUARDAR EN COMPILADO
+                <!-- BOTÓN GUARDAR -->
+                <button id="btn-guardar-lina" onclick="guardarEvaluacion()" 
+                        class="w-full bg-blue-900 text-white py-4 rounded-xl font-bold hover:bg-blue-950 transition text-lg shadow-lg flex items-center justify-center gap-3">
+                    <span>💾</span> GUARDAR COMPILADO COMPLETO
                 </button>
             </div>
         </div>
