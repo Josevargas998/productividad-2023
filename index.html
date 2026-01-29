@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Productividad UQ</title>
+    <title>Sistema de Productividad Uniquindío</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     
@@ -26,199 +26,205 @@
         const auth = getAuth(app);
         const appId = 'uniquindio-produccion';
 
-        // Lógica de interfaz: Cambiar campos según lo que se elija
+        // Lógica para mostrar campos según la categoría del archivo excel
         window.cambiarCategoria = () => {
             const cat = document.getElementById('categoria').value;
             const camposExtra = document.getElementById('campos-dinamicos');
             
-            if (cat === 'Articulo') {
-                camposExtra.innerHTML = `
+            let html = '';
+            if (cat === 'Revista') {
+                html = `
                     <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase">ISSN Revista</label>
-                            <input type="text" id="issn" placeholder="Ej: 1932-8540" class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50 border focus:ring-2 focus:ring-green-600 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase">Categoría</label>
-                            <select id="r_cat" class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50 border outline-none">
-                                <option>A1</option><option>A2</option><option>B</option><option>C</option><option>No Indexada</option>
-                            </select>
-                        </div>
+                        <div><label class="text-xs font-bold text-gray-500">ISSN REVISTA</label>
+                        <input type="text" id="issn" class="w-full border p-2 rounded bg-gray-50"></div>
+                        <div><label class="text-xs font-bold text-gray-500">CATEGORÍA (A1, A2, B, C)</label>
+                        <select id="r_cat" class="w-full border p-2 rounded bg-gray-50"><option>A1</option><option>A2</option><option>B</option><option>C</option><option>No indexada</option></select></div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase">Nombre de la Revista</label>
-                        <input type="text" id="revista" class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50 border focus:ring-2 focus:ring-green-600 outline-none">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="text-xs font-bold text-gray-500">NOMBRE REVISTA</label>
+                        <input type="text" id="revista" class="w-full border p-2 rounded bg-gray-50"></div>
+                        <div><label class="text-xs font-bold text-gray-500">EDITORIAL</label>
+                        <input type="text" id="editorial" class="w-full border p-2 rounded bg-gray-50"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="text-xs font-bold text-gray-500">MODALIDAD (Full paper, etc)</label>
+                        <input type="text" id="modalidad" class="w-full border p-2 rounded bg-gray-50"></div>
+                        <div><label class="text-xs font-bold text-gray-500">PAÍS</label>
+                        <input type="text" id="pais" class="w-full border p-2 rounded bg-gray-50"></div>
                     </div>`;
             } else if (cat === 'LibroTexto') {
-                camposExtra.innerHTML = `
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase">ISBN</label>
-                        <input type="text" id="isbn" placeholder="Ej: 978-628..." class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50 border focus:ring-2 focus:ring-green-600 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase">Espacio Académico</label>
-                        <input type="text" id="espacio" placeholder="Nombre de la asignatura" class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50 border focus:ring-2 focus:ring-green-600 outline-none">
+                html = `
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="text-xs font-bold text-gray-500">ISBN</label>
+                        <input type="text" id="isbn" class="w-full border p-2 rounded bg-gray-50"></div>
+                        <div><label class="text-xs font-bold text-gray-500">ESPACIO ACADÉMICO</label>
+                        <input type="text" id="espacio" class="w-full border p-2 rounded bg-gray-50"></div>
                     </div>`;
-            } else {
-                camposExtra.innerHTML = `
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase">ISBN</label>
-                        <input type="text" id="isbn" class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50 border">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase">Programa Académico</label>
-                        <input type="text" id="programa" placeholder="Ej: Medicina, Ingeniería..." class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50 border">
+            } else if (cat === 'LibroEnsayo') {
+                html = `
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="text-xs font-bold text-gray-500">ISBN</label>
+                        <input type="text" id="isbn" class="w-full border p-2 rounded bg-gray-50"></div>
+                        <div><label class="text-xs font-bold text-gray-500">PROGRAMA ACADÉMICO</label>
+                        <input type="text" id="programa_especifico" class="w-full border p-2 rounded bg-gray-50"></div>
                     </div>`;
+            } else if (cat === 'Otro') {
+                html = `<div><label class="text-xs font-bold text-gray-500">TIPO DE PRODUCTO (SOFTWARE, PREMIO, ETC)</label>
+                        <input type="text" id="tipo_otro" class="w-full border p-2 rounded bg-gray-50"></div>`;
             }
+            camposExtra.innerHTML = html;
         };
 
-        // Autenticación y Contador en tiempo real
-        signInAnonymously(auth);
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'registros_detallados'));
-                onSnapshot(q, (snapshot) => {
-                    document.getElementById('record-count').innerText = snapshot.size;
-                });
-            }
-        });
-
-        // Guardar en Firebase
+        // Guardar datos
         document.getElementById('product-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submit-btn');
             btn.disabled = true;
-            btn.innerText = "PROCESANDO...";
+            btn.innerText = "GUARDANDO...";
 
             const datos = {
                 categoria: document.getElementById('categoria').value,
+                año_proceso: document.getElementById('anio_proceso').value,
+                semestre: document.getElementById('semestre').value,
                 titulo: document.getElementById('titulo').value,
                 autor: document.getElementById('autor').value,
                 facultad: document.getElementById('facultad').value,
-                anio: document.getElementById('anio').value,
+                programa: document.getElementById('programa').value,
                 createdAt: serverTimestamp(),
-                // Captura dinámica según los campos que existan en ese momento
+                // Campos dinámicos
                 issn: document.getElementById('issn')?.value || '',
                 cat_revista: document.getElementById('r_cat')?.value || '',
                 revista: document.getElementById('revista')?.value || '',
+                editorial: document.getElementById('editorial')?.value || '',
+                modalidad: document.getElementById('modalidad')?.value || '',
+                pais: document.getElementById('pais')?.value || '',
                 isbn: document.getElementById('isbn')?.value || '',
                 espacio_academico: document.getElementById('espacio')?.value || '',
-                programa: document.getElementById('programa')?.value || ''
+                programa_especifico: document.getElementById('programa_especifico')?.value || '',
+                tipo_otro: document.getElementById('tipo_otro')?.value || ''
             };
 
             try {
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'registros_detallados'), datos);
+                alert("✅ Guardado con éxito");
                 e.target.reset();
                 window.cambiarCategoria();
-                alert("✅ Registro guardado correctamente");
-            } catch (e) { alert("❌ Error al guardar"); }
-            finally { 
-                btn.disabled = false; 
-                btn.innerText = "GUARDAR REGISTRO"; 
-            }
+            } catch (err) { alert("❌ Error"); }
+            finally { btn.disabled = false; btn.innerText = "GUARDAR REGISTRO"; }
         });
 
-        // EXPORTAR EXCEL CON PESTAÑAS (HOJAS)
-        window.exportarExcelFinal = async () => {
+        // Exportar a Excel con las pestañas exactas del compilado
+        window.exportarExcelCompleto = async () => {
             const querySnapshot = await getDocs(collection(db, 'artifacts', appId, 'public', 'data', 'registros_detallados'));
-            
-            const revistas = [];
-            const libroTexto = [];
-            const libroEnsayo = [];
+            const hojas = { "Publicac. Rev. Index": [], "Libro Texto": [], "Libro Ensayo": [], "Otros": [] };
 
             querySnapshot.forEach((doc) => {
                 const d = doc.data();
-                const base = { AÑO: d.anio, TÍTULO: d.titulo, AUTOR: d.autor, FACULTAD: d.facultad };
+                const base = { AÑO: d.año_proceso, SEMESTRE: d.semestre, TÍTULO: d.titulo, AUTOR: d.autor, PROGRAMA: d.programa, FACULTAD: d.facultad };
 
-                if (d.categoria === 'Articulo') {
-                    revistas.push({ ...base, ISSN: d.issn, REVISTA: d.revista, CATEGORIA: d.cat_revista });
+                if (d.categoria === 'Revista') {
+                    hojas["Publicac. Rev. Index"].push({ ...base, MODALIDAD: d.modalidad, PAIS: d.pais, "ISSN REVISTA": d.issn, "NOMBRE REVISTA": d.revista, "CATEGORÍA": d.cat_revista, EDITORIAL: d.editorial });
                 } else if (d.categoria === 'LibroTexto') {
-                    libroTexto.push({ ...base, ISBN: d.isbn, "ESPACIO ACADÉMICO": d.espacio_academico });
+                    hojas["Libro Texto"].push({ ...base, ISBN: d.isbn, "ESPACIO ACADÉMICO": d.espacio_academico });
+                } else if (d.categoria === 'LibroEnsayo') {
+                    hojas["Libro Ensayo"].push({ ...base, ISBN: d.isbn, "PROGRAMA ESPECIFICO": d.programa_especifico });
                 } else {
-                    libroEnsayo.push({ ...base, ISBN: d.isbn, PROGRAMA: d.programa });
+                    hojas["Otros"].push({ ...base, TIPO: d.tipo_otro });
                 }
             });
 
             const wb = XLSX.utils.book_new();
-            
-            if(revistas.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(revistas), "Publicac. Rev. Index");
-            if(libroTexto.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(libroTexto), "Libro Texto");
-            if(libroEnsayo.length > 0) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(libroEnsayo), "Libro Ensayo");
-
-            XLSX.writeFile(wb, "Compilado_Productividad_2024.xlsx");
+            Object.keys(hojas).forEach(nombre => {
+                if (hojas[nombre].length > 0) {
+                    const ws = XLSX.utils.json_to_sheet(hojas[nombre]);
+                    XLSX.utils.book_append_sheet(wb, ws, nombre);
+                }
+            });
+            XLSX.writeFile(wb, "Compilado_Productividad_2023_Final.xlsx");
         };
 
+        signInAnonymously(auth);
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'registros_detallados'), s => {
+                    document.getElementById('record-count').innerText = s.size;
+                });
+            }
+        });
         window.onload = window.cambiarCategoria;
     </script>
 </head>
-<body class="bg-gray-50 min-h-screen p-4">
-    <div class="max-w-2xl mx-auto space-y-6">
-        
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="text-center md:text-left">
-                <h1 class="text-2xl font-black text-green-900 leading-tight">UniQuindío</h1>
-                <p class="text-xs font-bold text-green-700 uppercase tracking-widest">Productividad Académica</p>
+<body class="bg-slate-100 p-4">
+    <div class="max-w-3xl mx-auto">
+        <div class="bg-[#003d2b] text-white p-6 rounded-t-2xl flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold">UniQuindío - Captura 2023</h1>
+                <p class="text-xs opacity-80">Compilado de Productividad Académica</p>
             </div>
-            <div class="flex items-center gap-6">
-                <div class="text-center">
-                    <div class="text-3xl font-black text-gray-800" id="record-count">0</div>
-                    <div class="text-[10px] text-gray-400 font-bold uppercase">Total</div>
-                </div>
-                <button onclick="exportarExcelFinal()" class="bg-green-800 hover:bg-green-900 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-lg shadow-green-100 transition-all">
-                    📊 DESCARGAR EXCEL
-                </button>
+            <div class="text-right">
+                <span class="text-2xl font-black" id="record-count">0</span>
+                <p class="text-[10px] uppercase font-bold">Registros</p>
             </div>
         </div>
 
-        <form id="product-form" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-6">
-            <div>
-                <label class="block text-xs font-bold text-gray-500 uppercase mb-2">¿Qué vas a registrar?</label>
-                <select id="categoria" onchange="cambiarCategoria()" class="w-full rounded-xl border-gray-200 p-4 bg-gray-50 border-2 focus:border-green-800 outline-none font-medium">
-                    <option value="Articulo">Publicación en Revista Indexada</option>
-                    <option value="LibroTexto">Libro de Texto</option>
-                    <option value="LibroEnsayo">Libro de Ensayo</option>
-                </select>
+        <form id="product-form" class="bg-white p-8 shadow-xl space-y-6">
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase">Año Proceso</label>
+                    <input type="number" id="anio_proceso" value="2023" class="w-full border-2 p-2 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase">Semestre</label>
+                    <select id="semestre" class="w-full border-2 p-2 rounded-lg"><option>I</option><option>II</option></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-400 uppercase">Categoría Excel</label>
+                    <select id="categoria" onchange="cambiarCategoria()" class="w-full border-2 p-2 rounded-lg bg-yellow-50 font-bold">
+                        <option value="Revista">Revista Indexada</option>
+                        <option value="LibroTexto">Libro Texto</option>
+                        <option value="LibroEnsayo">Libro Ensayo</option>
+                        <option value="Otro">Software / Premios</option>
+                    </select>
+                </div>
             </div>
+
+            <hr>
 
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase">Título de la Obra</label>
-                    <input type="text" id="titulo" required class="mt-1 w-full rounded-lg border-gray-300 p-3 bg-gray-50 border focus:ring-2 focus:ring-green-600 outline-none">
+                    <label class="block text-xs font-bold text-gray-400 uppercase">Título de la Obra / Artículo</label>
+                    <input type="text" id="titulo" required class="w-full border-2 p-3 rounded-lg focus:border-green-700 outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase">Autor Principal</label>
-                    <input type="text" id="autor" required class="mt-1 w-full rounded-lg border-gray-300 p-3 bg-gray-50 border focus:ring-2 focus:ring-green-600 outline-none">
+                    <label class="block text-xs font-bold text-gray-400 uppercase">Autor / Investigador Principal</label>
+                    <input type="text" id="autor" required class="w-full border-2 p-3 rounded-lg focus:border-green-700 outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase">Facultad</label>
+                        <select id="facultad" class="w-full border-2 p-3 rounded-lg">
+                            <option>Ciencias Básicas y Tecnologías</option><option>Ingeniería</option><option>Ciencias de la Salud</option>
+                            <option>Ciencias de la Educación</option><option>Ciencias Humanas y Bellas Artes</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-400 uppercase">Programa</label>
+                        <input type="text" id="programa" placeholder="Ej: Tecnología en Instrumentación" class="w-full border-2 p-3 rounded-lg">
+                    </div>
                 </div>
             </div>
 
-            <div id="campos-dinamicos" class="bg-green-50/50 p-5 rounded-2xl border border-green-100 space-y-4"></div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase">Facultad</label>
-                    <select id="facultad" class="mt-1 w-full rounded-lg border-gray-300 p-3 bg-gray-50 border outline-none">
-                        <option>Ingeniería</option>
-                        <option>Educación</option>
-                        <option>Ciencias de la Salud</option>
-                        <option>Ciencias Básicas</option>
-                        <option>Ciencias Humanas</option>
-                        <option>Economía y Administración</option>
-                    </select>
+            <div id="campos-dinamicos" class="p-6 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 space-y-4">
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-gray-500 uppercase">Año</label>
-                    <input type="number" id="anio" value="2024" class="mt-1 w-full rounded-lg border-gray-300 p-3 bg-gray-50 border outline-none">
-                </div>
-            </div>
 
-            <button type="submit" id="submit-btn" class="w-full bg-green-800 text-white font-black py-5 rounded-2xl shadow-xl hover:shadow-green-200 transition-all uppercase tracking-widest">
-                Guardar Registro
+            <button type="submit" id="submit-btn" class="w-full bg-[#003d2b] text-white font-bold py-4 rounded-xl shadow-lg hover:bg-black transition-all">
+                GUARDAR REGISTRO
             </button>
         </form>
 
-        <p class="text-center text-[10px] text-gray-300 font-bold uppercase tracking-[0.3em]">
-            Universidad del Quindío • 2024
-        </p>
+        <button onclick="exportarExcelCompleto()" class="w-full mt-4 bg-white border-2 border-green-800 text-green-800 font-bold py-4 rounded-xl flex justify-center items-center gap-2 hover:bg-green-50">
+            <span>📊</span> DESCARGAR EXCEL CON TODAS LAS PESTAÑAS
+        </button>
     </div>
 </body>
 </html>
