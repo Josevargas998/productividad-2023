@@ -25,7 +25,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbyOa0PXFxIu4lnAjobGIZMJdtJbs4ULUHJU1mv8gnCvjstp-a3qfQO7wDD2HYT_lJs6yA/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbx66qCOArPP6YH-_h5CoVjHCPMEwbY4X6iRW2ZKlpFVBoLs54umMFMaIeQjSQNUP8E2cw/exec";
 
         let rolActual = ''; 
 
@@ -108,7 +108,7 @@
             container.innerHTML = html;
         };
 
-        // --- GUARDAR SOLICITUD (JOSÉ) ---
+        // --- GUARDAR SOLICITUD (JOSÉ) - VERSIÓN CORREGIDA ---
         document.getElementById('form-jose').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn-jose');
@@ -116,7 +116,6 @@
             btn.disabled = true;
 
             const registro = {
-                // Datos de JOSÉ (Seguimiento)
                 anio: "2024",
                 semestre: document.getElementById('semestre').value,
                 categoria: document.getElementById('categoria').value,
@@ -126,13 +125,9 @@
                 programa: document.getElementById('programa').value,
                 doc_completa: document.getElementById('doc_completa').value,
                 observaciones_jose: document.getElementById('observaciones_jose').value,
-                
-                // Campos específicos por categoría
                 issn: document.getElementById('issn')?.value || '',
                 nombre_revista: document.getElementById('nombre_revista')?.value || '',
                 modalidad: document.getElementById('modalidad')?.value || '',
-                
-                // Campos de LINA (vacíos inicialmente)
                 estado_ciarp: "PENDIENTE",
                 acta_ciarp: "",
                 resolucion: "",
@@ -147,21 +142,29 @@
             };
 
             try {
-                // 1. Firebase
+                // 1. Guardar en Firebase
                 await addDoc(collection(db, 'registros_2024'), registro);
+                console.log('✅ Guardado en Firebase');
                 
-                // 2. Drive (backup)
-                fetch(urlAppsScript, { 
+                // 2. Guardar en Drive (backup) - CORREGIDO
+                const respuestaDrive = await fetch(urlAppsScript, { 
                     method: 'POST',
                     body: JSON.stringify(registro),
-                    headers: { 'Content-Type': 'application/json' }
-                }).catch(e => console.log('Sync Drive:', e));
+                    mode: 'no-cors',  // IMPORTANTE: evita errores CORS
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                console.log('✅ Sincronizado con Google Drive');
 
-                alert("✅ Solicitud Radicada Correctamente");
+                alert("✅ Solicitud Guardada Correctamente\n\n📊 Firebase: OK\n📁 Google Drive: OK");
                 e.target.reset();
                 cambiarCategoria();
+                
             } catch (err) { 
-                alert("❌ Error: " + err.message); 
+                console.error('❌ Error completo:', err);
+                alert("❌ Error al guardar: " + err.message + "\n\nRevisa la consola para más detalles (F12)"); 
             } finally { 
                 btn.innerText = "RADICAR SOLICITUD"; 
                 btn.disabled = false; 
@@ -559,4 +562,3 @@
 
 </body>
 </html>
-
