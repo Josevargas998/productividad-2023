@@ -6,12 +6,27 @@
     <title>Productividad Uniquindio 2023</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, query, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
-        // Global state
-        let db, auth, appId, user;
+        // Configuración real de tu proyecto de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBbqMf8ZOmqmbGTmr2tr8nziyUWKSE6OWg",
+            authDomain: "uniquindio-produccion.firebaseapp.com",
+            projectId: "uniquindio-produccion",
+            storageBucket: "uniquindio-produccion.firebasestorage.app",
+            messagingSenderId: "440871309124",
+            appId: "1:440871309124:web:108be1894adaf6ecaf1111",
+            measurementId: "G-89TWF8SGL"
+        };
+
+        // Inicialización
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const appId = "uniquindio-prod";
+        let user;
 
         const showMessage = (msg, isError = false) => {
             const banner = document.getElementById('status-banner');
@@ -23,54 +38,33 @@
 
         async function initApp() {
             try {
-                // Environment variables provided by the platform
-                const firebaseConfig = JSON.parse(__firebase_config);
-                appId = typeof __app_id !== 'undefined' ? __app_id : 'uniquindio-prod';
+                // Autenticación anónima para habilitar permisos
+                await signInAnonymously(auth);
                 
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-
-                // RULE 3: Auth before queries
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-
                 onAuthStateChanged(auth, (u) => {
                     if (u) {
                         user = u;
+                        document.getElementById('auth-status').innerText = "Conectado";
+                        document.getElementById('auth-status').className = "bg-green-500 px-4 py-1 rounded-full text-xs font-bold uppercase";
                         startDataListeners();
                     }
                 });
             } catch (error) {
-                console.error("Initialization error:", error);
-                showMessage("Error de conexión al sistema", true);
+                console.error("Error:", error);
+                showMessage("Error de conexión", true);
             }
         }
 
         function startDataListeners() {
-            if (!user) return;
-
-            // RULE 1: Strict Paths for public data
             const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'produccion_2023');
-
-            // Real-time counter
             onSnapshot(colRef, (snapshot) => {
                 document.getElementById('counter').innerText = snapshot.size;
-            }, (error) => {
-                console.error("Firestore error:", error);
             });
         }
 
-        // Handle Form Submission
         window.saveData = async (event) => {
             event.preventDefault();
-            if (!user) {
-                showMessage("No autenticado", true);
-                return;
-            }
+            if (!user) return showMessage("No hay conexión", true);
 
             const btn = document.getElementById('submit-btn');
             btn.disabled = true;
@@ -86,15 +80,13 @@
             };
 
             try {
-                // RULE 1: Saving to the correct path
                 const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'produccion_2023');
                 await addDoc(colRef, data);
-                
                 document.getElementById('prod-form').reset();
-                showMessage("¡Información guardada en la nube!");
+                showMessage("¡Registro guardado!");
             } catch (error) {
-                console.error("Save error:", error);
-                showMessage("Error al guardar información", true);
+                console.error(error);
+                showMessage("Error al guardar", true);
             } finally {
                 btn.disabled = false;
                 btn.innerText = "GUARDAR REGISTRO";
@@ -105,71 +97,56 @@
     </script>
 </head>
 <body class="bg-[#f0f2f5] min-h-screen font-sans">
-
     <div id="status-banner" style="display: none;"></div>
-
     <div class="max-w-xl mx-auto pt-10 px-4">
-        <!-- Main Card -->
-        <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
-            <!-- Header -->
+        <div class="bg-white rounded-3xl shadow-xl overflow-hidden text-center">
             <div class="bg-[#003d2b] p-8 text-white relative">
-                <div class="flex items-center gap-4">
+                <div id="auth-status" class="bg-red-500 px-4 py-1 rounded-full text-xs font-bold uppercase absolute top-4 right-4">
+                    Desconectado
+                </div>
+                <div class="flex justify-center items-center gap-4">
                     <div class="bg-white/20 p-3 rounded-2xl">
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
                     </div>
-                    <div>
-                        <h1 class="text-xl font-bold tracking-tight">Productividad Académica</h1>
-                        <p class="text-xs text-green-300 font-semibold tracking-widest uppercase">Universidad del Quindío</p>
+                    <div class="text-left">
+                        <h1 class="text-xl font-bold">Productividad Académica</h1>
+                        <p class="text-xs text-green-300 font-semibold uppercase">Universidad del Quindío</p>
                     </div>
                 </div>
-
-                <!-- Live Counter -->
-                <div class="mt-6 flex items-baseline gap-2 bg-black/20 w-fit px-4 py-2 rounded-xl">
+                <div class="mt-6 flex items-baseline gap-2 bg-black/20 w-fit px-4 py-2 rounded-xl mx-auto">
                     <span id="counter" class="text-3xl font-black">0</span>
                     <span class="text-[10px] font-bold uppercase opacity-70">Registros Totales</span>
                 </div>
             </div>
 
-            <!-- Form -->
-            <form id="prod-form" onsubmit="window.saveData(event)" class="p-8 space-y-6">
+            <form id="prod-form" onsubmit="window.saveData(event)" class="p-8 space-y-6 text-left">
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Título de la Obra</label>
-                    <input type="text" id="titulo" required class="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 text-gray-700 focus:border-[#003d2b] focus:bg-white outline-none transition-all" placeholder="Nombre de la publicación o proyecto">
+                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Título de la Obra</label>
+                    <input type="text" id="titulo" required class="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 focus:border-[#003d2b] outline-none">
                 </div>
-
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Autor / Investigador</label>
-                    <input type="text" id="autor" required class="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 text-gray-700 focus:border-[#003d2b] focus:bg-white outline-none transition-all" placeholder="Nombre completo del docente">
+                    <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Autor</label>
+                    <input type="text" id="autor" required class="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 focus:border-[#003d2b] outline-none">
                 </div>
-
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Facultad</label>
-                        <select id="facultad" class="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 text-gray-700 focus:border-[#003d2b] outline-none appearance-none">
+                        <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Facultad</label>
+                        <select id="facultad" class="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 focus:border-[#003d2b] outline-none">
                             <option>Ingeniería</option>
                             <option>Educación</option>
                             <option>Ciencias de la Salud</option>
-                            <option>Ciencias Básicas</option>
-                            <option>Ciencias Humanas</option>
-                            <option>Economía y Administración</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Año</label>
-                        <input type="number" id="anio" value="2023" class="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 text-gray-700 focus:border-[#003d2b] outline-none">
+                        <label class="block text-xs font-bold text-gray-400 uppercase mb-2">Año</label>
+                        <input type="number" id="anio" value="2023" class="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 focus:border-[#003d2b] outline-none">
                     </div>
                 </div>
-
-                <button type="submit" id="submit-btn" class="w-full bg-[#003d2b] hover:bg-[#002a1d] text-white font-bold py-5 rounded-2xl transition-all shadow-lg active:scale-95 uppercase tracking-widest text-sm">
-                    Guardar Registro
+                <button type="submit" id="submit-btn" class="w-full bg-[#003d2b] hover:bg-[#002a1d] text-white font-bold py-5 rounded-2xl shadow-lg transition-all">
+                    GUARDAR REGISTRO
                 </button>
             </form>
         </div>
-
-        <p class="text-center mt-8 text-[10px] text-gray-400 font-bold uppercase tracking-[0.4em]">
-            Vigencia 2023 • Sistema de Captura
-        </p>
     </div>
-
 </body>
 </html>
