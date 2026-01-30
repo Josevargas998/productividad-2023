@@ -25,7 +25,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbwsmnZuv-C6c89ySnW4gC_osAgndlB5kbsCTmbGEVj-iV0yv-PwdR80nUGvaQRzNu4cWA/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbxocH-zIwvBT83Y35sQyvSYCUBytK9TIdcvC8SL9ev--Iocv92FNBZvDlRAJTDai1jApg/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
@@ -75,11 +75,22 @@
                 datalist.appendChild(option);
             });
             
+            // ✅ NUEVO: También cargar para el datalist de José
+            const datalistJose = document.getElementById('lista-docentes-jose');
+            if (datalistJose) {
+                datalistJose.innerHTML = '';
+                docentes.forEach(doc => {
+                    const option = document.createElement('option');
+                    option.value = doc.nombre;
+                    datalistJose.appendChild(option);
+                });
+            }
+            
             console.log(`✅ ${docentes.length} docentes cargados en el autocompletador`);
         }
 
-        // ==================== AUTOCOMPLETAR DATOS DEL DOCENTE ====================
-        function autocompletarDocente() {
+        // ==================== AUTOCOMPLETAR DATOS DEL DOCENTE PARA LINA ====================
+        function autocompletarDocenteLina() {
             const input = document.getElementById('buscar-docente');
             const nombreSeleccionado = input.value.trim();
             
@@ -118,6 +129,49 @@
             }
         }
 
+        // ==================== AUTOCOMPLETAR DATOS DEL DOCENTE PARA JOSÉ ====================
+        function autocompletarDocenteJose() {
+            const input = document.getElementById('autor');
+            const nombreSeleccionado = input.value.trim();
+            
+            if (!nombreSeleccionado) return;
+            
+            const docente = baseDocentes.find(d => d.nombre === nombreSeleccionado);
+            
+            if (docente) {
+                console.log('✅ Docente encontrado:', docente.nombre);
+                
+                // Mostrar notificación visual
+                input.classList.remove('border-gray-300');
+                input.classList.add('border-green-500', 'bg-green-50');
+                setTimeout(() => {
+                    input.classList.remove('border-green-500', 'bg-green-50');
+                    input.classList.add('border-gray-300');
+                }, 2000);
+                
+                // ✅ NUEVO: Llenar automáticamente el programa si está vacío
+                const programaInput = document.getElementById('programa');
+                if (programaInput && !programaInput.value) {
+                    // Extraer programa del correo si está disponible
+                    if (docente.correo) {
+                        const match = docente.correo.match(/@(.+?)\./);
+                        if (match && match[1]) {
+                            const dominio = match[1].toUpperCase();
+                            programaInput.value = dominio;
+                            programaInput.classList.remove('border-gray-300');
+                            programaInput.classList.add('border-green-500', 'bg-green-50');
+                            setTimeout(() => {
+                                programaInput.classList.remove('border-green-500', 'bg-green-50');
+                                programaInput.classList.add('border-gray-300');
+                            }, 2000);
+                        }
+                    }
+                }
+            } else {
+                console.log('⚠️ Docente no encontrado en la base de datos:', nombreSeleccionado);
+            }
+        }
+
         const CONTRASEÑAS = {
             'JOSE': 'jose2026',
             'LINA': 'lina2026'
@@ -149,6 +203,18 @@
                 document.getElementById('header-title').innerText = "SEGUIMIENTO DE SOLICITUDES (JOSÉ)";
                 document.getElementById('header-bg').classList.add('bg-[#003d2b]');
                 cambiarCategoria();
+                
+                // ✅ NUEVO: Cargar base de docentes al iniciar sesión de José también
+                cargarBaseDocentes();
+                
+                // ✅ NUEVO: Event listener para autocompletado de José
+                setTimeout(() => {
+                    const autorInput = document.getElementById('autor');
+                    if (autorInput) {
+                        autorInput.addEventListener('change', autocompletarDocenteJose);
+                        autorInput.addEventListener('blur', autocompletarDocenteJose);
+                    }
+                }, 500);
             } else {
                 document.getElementById('panel-lina').classList.remove('hidden');
                 document.getElementById('header-title').innerText = "COMPILADO Y LIQUIDACIÓN (LINA)";
@@ -158,12 +224,12 @@
                 // ✅ NUEVO: Cargar base de docentes al iniciar sesión de Lina
                 cargarBaseDocentes();
                 
-                // ✅ NUEVO: Event listeners para el autocompletado
+                // ✅ NUEVO: Event listeners para el autocompletado de Lina
                 setTimeout(() => {
                     const buscadorDocente = document.getElementById('buscar-docente');
                     if (buscadorDocente) {
-                        buscadorDocente.addEventListener('change', autocompletarDocente);
-                        buscadorDocente.addEventListener('blur', autocompletarDocente);
+                        buscadorDocente.addEventListener('change', autocompletarDocenteLina);
+                        buscadorDocente.addEventListener('blur', autocompletarDocenteLina);
                     }
                 }, 500);
             }
@@ -806,14 +872,26 @@
 
                 <div id="campos-jose-especificos"></div>
 
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Autor/Docente</label>
-                        <input type="text" id="autor" class="w-full p-2 border border-gray-300 rounded focus:border-green-600 outline-none" required>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Programa</label>
-                        <input type="text" id="programa" class="w-full p-2 border border-gray-300 rounded focus:border-green-600 outline-none">
+                <!-- ✅ NUEVO: CAMPO AUTOR CON AUTOCOMPLETADO PARA JOSÉ -->
+                <div class="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg border-2 border-green-300 shadow-sm">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-green-700 mb-1">🔍 AUTOR/DOCENTE</label>
+                            <input 
+                                list="lista-docentes-jose" 
+                                type="text" 
+                                id="autor" 
+                                placeholder="Escriba el nombre del docente..." 
+                                class="w-full p-2 border-2 border-green-400 rounded focus:border-green-600 outline-none" 
+                                required
+                                autocomplete="off">
+                            <datalist id="lista-docentes-jose"></datalist>
+                            <p class="text-xs text-green-600 mt-1">💡 Seleccione un nombre para validar que está en la base de datos</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">PROGRAMA</label>
+                            <input type="text" id="programa" class="w-full p-2 border border-gray-300 rounded focus:border-green-600 outline-none">
+                        </div>
                     </div>
                 </div>
 
@@ -1075,4 +1153,4 @@
     </div>
 
 </body>
-</html>ur
+</html>
