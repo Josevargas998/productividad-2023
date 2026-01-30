@@ -9,7 +9,7 @@
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, doc, query, orderBy, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
         const firebaseConfig = {
@@ -19,16 +19,213 @@
             storageBucket: "uniquindio-produccion.firebasestorage.app",
             messagingSenderId: "440871309124",
             appId: "1:440871309124:web:108be1894adaf6ecaf1111"
+        }
+
+        // ==================== SINCRONIZACIÓN BIDIRECCIONAL ====================
+        async function guardarFilaEnFirebase(firebaseId, fila, categoria) {
+            try {
+                const docRef = doc(db, "solicitudes", firebaseId);
+                await updateDoc(docRef, {
+                    _fila: fila,
+                    _categoria: categoria,
+                    _ultimaActualizacion: new Date().toISOString()
+                });
+                console.log("✅ Fila guardada en Firebase:", fila);
+            } catch (error) {
+                console.error("❌ Error al guardar fila:", error);
+            }
+        }
+
+        async function cargarRegistrosDesdeSheets(categoria) {
+            try {
+                const response = await fetch(
+                    `${urlAppsScript}?action=obtenerRegistros&categoria=${encodeURIComponent(categoria)}`
+                );
+                const data = await response.json();
+                
+                if (data && Array.isArray(data)) {
+                    console.log(`✅ Registros cargados desde Sheets (${categoria}):`, data.length);
+                    return data;
+                }
+                return [];
+            } catch (error) {
+                console.error("❌ Error al cargar desde Sheets:", error);
+                return [];
+            }
+        }
+
+        // ==================== TABLA JOSÉ ====================
+        window.cargarTablaJose = async function() {
+            const categoria = document.getElementById('categoria').value;
+            
+            if (!categoria) {
+                const tbody = document.getElementById('tabla-registros-jose');
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">Seleccione una categoría primero</td></tr>';
+                }
+                return;
+            }
+            
+            try {
+                const q = query(collection(db, "solicitudes"), orderBy("timestamp", "desc"));
+                const querySnapshot = await getDocs(q);
+                
+                const tbody = document.getElementById('tabla-registros-jose');
+                if (!tbody) return;
+                
+                tbody.innerHTML = '';
+                
+                const registrosFiltrados = [];
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    if (data.categoria === categoria) {
+                        registrosFiltrados.push({ id: docSnap.id, data: data });
+                    }
+                });
+                
+                if (registrosFiltrados.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">No hay registros en esta categoría</td></tr>';
+                    return;
+                }
+                
+                registrosFiltrados.forEach(({ id, data }) => {
+                    const estadoColor = data.estado_ciarp === 'Aprobado' ? 'bg-green-100 text-green-800' : 
+                                       data.estado_ciarp === 'No Aprobado' ? 'bg-red-100 text-red-800' : 
+                                       'bg-yellow-100 text-yellow-800';
+                    
+                    const row = `
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="border px-2 py-2 text-xs">${data.anio || ''}</td>
+                            <td class="border px-2 py-2 text-xs">${data.semestre || ''}</td>
+                            <td class="border px-2 py-2 text-xs font-semibold">${data.titulo_producto || ''}</td>
+                            <td class="border px-2 py-2 text-xs">${data.autor || ''}</td>
+                            <td class="border px-2 py-2 text-xs">${data.fecha_recibido || ''}</td>
+                            <td class="border px-2 py-2 text-center">
+                                <span class="px-2 py-1 rounded text-xs font-bold ${estadoColor}">
+                                    ${data.estado_ciarp || 'Pendiente'}
+                                </span>
+                            </td>
+                            <td class="border px-2 py-2 text-center">
+                                <button onclick="eliminarRegistroJose('${id}', '${data._categoria || categoria}', ${data._fila || 0})" 
+                                        class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-bold transition-all hover:scale-105">
+                                    🗑️ Eliminar
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+                
+            } catch (error) {
+                console.error("❌ Error al cargar tabla:", error);
+            }
         };
+
+        window.eliminarRegistroJose = async function(firebaseId, categoria, fila) {
+            if (!confirm('¿Está seguro de eliminar este registro? Esta acción no se puede deshacer.')) {
+                return;
+            }
+            
+            try {
+                if (fila && fila > 1) {
+                    await fetch(
+                        `${urlAppsScript}?action=eliminarRegistro&categoria=${encodeURIComponent(categoria)}&fila=${fila}`,
+                        { method: 'GET' }
+                    );
+                }
+                
+                const docRef = doc(db, "solicitudes", firebaseId);
+                await deleteDoc(docRef);
+                
+                alert(`✅ Registro eliminado correctamente`);
+                cargarTablaJose();
+                
+            } catch (error) {
+                console.error("❌ Error al eliminar:", error);
+                alert("❌ Error al eliminar: " + error.message);
+            }
+        };
+
+        // ==================== SINCRONIZACIÓN AUTOMÁTICA ====================
+        async function sincronizarDesdeSheets() {
+            if (rolActual !== 'LINA') return;
+            
+            try {
+                const categorias = ["Artículos Indexados", "Artículos No Indexados", "Libros", "Capítulos"];
+                let totalActualizados = 0;
+                
+                for (const categoria of categorias) {
+                    const registrosSheets = await cargarRegistrosDesdeSheets(categoria);
+                    
+                    for (const regSheet of registrosSheets) {
+                        const titulo = regSheet["TÍTULO"];
+                        const autor = regSheet["AUTOR/DOCENTE"];
+                        
+                        if (!titulo || !autor) continue;
+                        
+                        const q = query(collection(db, "solicitudes"));
+                        const querySnapshot = await getDocs(q);
+                        
+                        querySnapshot.forEach((docSnap) => {
+                            const dataFirebase = docSnap.data();
+                            
+                            if (dataFirebase.titulo_producto === titulo && dataFirebase.autor === autor) {
+                                const timestampSheets = regSheet["TIMESTAMP LINA"];
+                                const timestampFirebase = dataFirebase.timestamp_lina;
+                                
+                                if (timestampSheets && timestampSheets !== timestampFirebase) {
+                                    const actualizacion = {
+                                        puntaje_eval1: parseFloat(regSheet["EVAL 1"]) || 0,
+                                        puntaje_eval2: parseFloat(regSheet["EVAL 2"]) || 0,
+                                        puntaje_asignado: parseFloat(regSheet["PUNTAJE FINAL"]) || 0,
+                                        estado_ciarp: regSheet["ESTADO FINAL"] || dataFirebase.estado_ciarp,
+                                        timestamp_lina: timestampSheets,
+                                        _fila: regSheet["_fila"] || dataFirebase._fila
+                                    };
+                                    
+                                    updateDoc(doc(db, "solicitudes", docSnap.id), actualizacion).then(() => {
+                                        totalActualizados++;
+                                        console.log(`🔄 Sincronizado: ${titulo}`);
+                                    });
+                                }
+                            }
+                        });
+                    }
+                }
+                
+                if (totalActualizados > 0) {
+                    console.log(`✅ ${totalActualizados} registros sincronizados`);
+                    if (typeof cargarPendientesLina === 'function') {
+                        cargarPendientesLina();
+                    }
+                }
+                
+            } catch (error) {
+                console.error("⚠️ Error en sincronización:", error);
+            }
+        }
+
+        function iniciarSincronizacionAutomatica() {
+            if (intervalSincronizacionLina) {
+                clearInterval(intervalSincronizacionLina);
+            }
+            
+            intervalSincronizacionLina = setInterval(sincronizarDesdeSheets, 20000);
+            sincronizarDesdeSheets();
+            
+            console.log("✅ Sincronización automática activada (cada 20s)");
+        }
+;
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbyzdWZei_53a_ncBCnuXKgaHx3zC80CSzZ3uy9aosyDJXcIQRT-MY0xXXcQxQFRlivT3Q/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbyBdwK6cmmFDOrLNt24vSpTsqmupe-gUBRbMlFcqWMbpHye3vvorV4dmU1Rartdv5XJZA/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
+        let intervalSincronizacionLina = null;
 
         let baseDocentes = []; // ✅ BASE DE DATOS DE DOCENTES
 
@@ -403,28 +600,13 @@
                 return;
             }
 
-            // ✅ Obtener el título según la categoría (sin duplicar "Título del Producto")
             let tituloProducto = '';
-            if (categoria.includes("Artículos")) {
+            if (categoria.includes("Artículo") || categoria.includes("Articulo")) {
                 tituloProducto = document.getElementById('nombre_articulo')?.value || '';
             } else if (categoria.includes("Libro")) {
                 tituloProducto = document.getElementById('titulo_libro')?.value || '';
-            } else if (categoria === "Premio") {
-                tituloProducto = document.getElementById('titulo_trabajo_premiado')?.value || '';
-            } else if (categoria === "Software") {
-                tituloProducto = document.getElementById('titulo_software')?.value || '';
-            } else if (categoria === "Patente") {
-                tituloProducto = document.getElementById('titulo_patente')?.value || '';
-            } else if (categoria === "Obra Artística" || categoria === "Producción Audiovisual") {
-                tituloProducto = document.getElementById('titulo_obra')?.value || '';
-            } else if (categoria === "Ponencias") {
-                tituloProducto = document.getElementById('titulo_ponencia')?.value || '';
-            } else if (categoria === "Tesis") {
-                tituloProducto = document.getElementById('titulo_tesis')?.value || '';
-            } else if (categoria === "Títulos") {
-                tituloProducto = document.getElementById('titulo_obtenido')?.value || '';
-            } else if (categoria === "Ascensos") {
-                tituloProducto = document.getElementById('tipo_trabajo')?.value || '';
+            } else if (categoria.includes("Capítulo") || categoria.includes("Capitulo")) {
+                tituloProducto = document.getElementById('titulo_capitulo')?.value || '';
             }
 
             if (!tituloProducto) {
@@ -433,25 +615,52 @@
             }
 
             const btnEnviar = document.getElementById('btn-enviar-jose');
+            const textoOriginal = btnEnviar.innerText;
             btnEnviar.disabled = true;
             btnEnviar.innerText = "⏳ ENVIANDO...";
 
             try {
-                await signInAnonymously(auth);
-
-                const data = {
-                    tipo_registro: "JOSE",
-                    timestamp: new Date().toISOString(),
-                    categoria,
-                    anio,
-                    semestre,
+                const datosFirebase = {
+                    categoria: categoria,
+                    anio: anio,
+                    semestre: semestre,
                     fecha_recibido: fechaRecibido,
                     titulo_producto: tituloProducto,
-                    autor,
-                    programa,
+                    autor: autor,
+                    programa: programa,
                     doc_completa: docCompleta,
                     estado_ciarp: estadoCiarp,
-                    observaciones_jose: observaciones
+                    observaciones_jose: observaciones,
+                    timestamp: new Date().toISOString(),
+                    tipo_registro: "JOSE"
+                };
+
+                const docRef = await addDoc(collection(db, "solicitudes"), datosFirebase);
+                console.log("✅ Creado en Firebase:", docRef.id);
+
+                const response = await fetch(urlAppsScript, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({...datosFirebase, tipo_registro: "JOSE"})
+                });
+
+                const result = await response.json();
+                
+                if (result.status === 'success' && result.fila) {
+                    await guardarFilaEnFirebase(docRef.id, result.fila, categoria);
+                    alert("✅ Registro creado correctamente");
+                    document.getElementById('form-jose').reset();
+                    cargarTablaJose();
+                }
+
+            } catch (error) {
+                console.error("❌ Error:", error);
+                alert("❌ Error: " + error.message);
+            } finally {
+                btnEnviar.disabled = false;
+                btnEnviar.innerText = textoOriginal;
+            }
+        
                 };
                 
                 // ✅ INCLUIR DATOS DEL DOCENTE SI FUERON SELECCIONADOS
@@ -793,49 +1002,74 @@
 
         window.guardarEvaluacion = async () => {
             if (!idRegistroActual) {
-                alert("❌ No hay registro seleccionado");
+                alert("⚠️ No se encontró el ID");
                 return;
             }
 
-            const btnGuardar = document.getElementById('btn-guardar-lina');
-            btnGuardar.disabled = true;
-            btnGuardar.innerHTML = '<span>⏳</span> GUARDANDO...';
+            const btnGuardar = document.getElementById('btn-guardar-evaluacion');
+            const textoOriginal = btnGuardar?.innerHTML || '';
+            if (btnGuardar) {
+                btnGuardar.disabled = true;
+                btnGuardar.innerHTML = '<span class="animate-pulse">⏳</span> GUARDANDO...';
+            }
 
             try {
-                // ✅ PRIMERO: Obtener TODOS los datos originales de Firebase
                 const docRef = doc(db, "solicitudes", idRegistroActual);
                 const docSnap = await getDoc(docRef);
+                
+                if (!docSnap.exists()) throw new Error("Documento no encontrado");
+
                 const datosOriginales = docSnap.data();
 
-                // ✅ SEGUNDO: Crear objeto con TODOS los datos (originales + actualizados)
                 const dataCompleta = {
-                    // Mantener TODOS los datos de José
-                    ...datosOriginales,
-                    
-                    // Sobrescribir con los datos de Lina
-                    tipo_registro: "LINA",
                     timestamp_lina: new Date().toISOString(),
-                    
-                    // Datos del docente
-                    documento_id: document.getElementById('edit-documento').value,
-                    escolaridad: document.getElementById('edit-escolaridad').value,
-                    categoria_docente: document.getElementById('edit-categoria-doc').value,
-                    dedicacion: document.getElementById('edit-dedicacion').value,
-                    facultad: document.getElementById('edit-facultad').value,
-                    programa: document.getElementById('edit-programa').value,
-                    
-                    // Estado editable
-                    estado_ciarp: document.getElementById('edit-estado-ciarp').value,
-                    
-                    // Evaluaciones
-                    puntaje_eval1: parseFloat(document.getElementById('edit-puntaje-eval1').value) || 0,
-                    puntaje_eval2: parseFloat(document.getElementById('edit-puntaje-eval2').value) || 0,
-                    puntaje_asignado: parseFloat(document.getElementById('edit-puntaje-asignado').value) || 0,
-                    
-                    // Documentación
-                    acta_ciarp: document.getElementById('edit-acta').value,
-                    resolucion: document.getElementById('edit-resolucion').value,
-                    observaciones_lina: document.getElementById('edit-obs-lina').value
+                    estado_ciarp: document.getElementById('edit-estado')?.value || '',
+                    documento_id: document.getElementById('edit-documento')?.value || '',
+                    escolaridad: document.getElementById('edit-escolaridad')?.value || '',
+                    categoria_docente: document.getElementById('edit-categoria-doc')?.value || '',
+                    dedicacion: document.getElementById('edit-dedicacion')?.value || '',
+                    facultad: document.getElementById('edit-facultad')?.value || '',
+                    puntaje_eval1: parseFloat(document.getElementById('edit-eval1')?.value) || 0,
+                    puntaje_eval2: parseFloat(document.getElementById('edit-eval2')?.value) || 0,
+                    puntaje_asignado: parseFloat(document.getElementById('edit-puntaje-total')?.value) || 0,
+                    acta_ciarp: document.getElementById('edit-acta')?.value || '',
+                    resolucion: document.getElementById('edit-resolucion')?.value || '',
+                    observaciones_lina: document.getElementById('edit-observaciones')?.value || '',
+                    categoria: datosOriginales.categoria,
+                    titulo_producto: datosOriginales.titulo_producto,
+                    autor: datosOriginales.autor,
+                    anio: datosOriginales.anio,
+                    semestre: datosOriginales.semestre,
+                    _fila: datosOriginales._fila,
+                    _categoria: datosOriginales._categoria,
+                    tipo_registro: "LINA"
+                };
+
+                await updateDoc(docRef, dataCompleta);
+                console.log("✅ Firebase actualizado");
+
+                await fetch(urlAppsScript, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dataCompleta)
+                });
+
+                console.log("✅ Sheets actualizado");
+                alert("✅ Guardado correctamente");
+                if (typeof cerrarModal === 'function') cerrarModal();
+                if (typeof cargarPendientesLina === 'function') cargarPendientesLina();
+
+            } catch (error) {
+                console.error("❌ Error:", error);
+                alert("❌ Error: " + error.message);
+            } finally {
+                if (btnGuardar) {
+                    btnGuardar.disabled = false;
+                    btnGuardar.innerHTML = textoOriginal;
+                }
+            }
+        
                 };
 
                 // ✅ Agregar campos específicos según categoría
@@ -1056,6 +1290,43 @@
                         class="w-full bg-[#003d2b] text-white py-4 rounded-xl font-bold hover:bg-green-900 transition text-lg shadow-lg flex items-center justify-center gap-3">
                     <span>✅</span> ENVIAR SOLICITUD
                 </button>
+    <!-- TABLA DE REGISTROS JOSÉ -->
+    <div class="mt-8 bg-white rounded-xl shadow-lg p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <span class="bg-[#003d2b] text-white p-2 rounded">📊</span>
+                REGISTROS INGRESADOS
+            </h3>
+            <button onclick="cargarTablaJose()" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all hover:scale-105">
+                🔄 ACTUALIZAR
+            </button>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse border">
+                <thead>
+                    <tr class="bg-[#003d2b] text-white">
+                        <th class="border px-3 py-2 text-xs font-bold">AÑO</th>
+                        <th class="border px-3 py-2 text-xs font-bold">SEM</th>
+                        <th class="border px-3 py-2 text-xs font-bold">TÍTULO</th>
+                        <th class="border px-3 py-2 text-xs font-bold">AUTOR</th>
+                        <th class="border px-3 py-2 text-xs font-bold">FECHA</th>
+                        <th class="border px-3 py-2 text-xs font-bold">ESTADO</th>
+                        <th class="border px-3 py-2 text-xs font-bold">ACCIONES</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-registros-jose">
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-gray-500">
+                            Seleccione una categoría para ver los registros
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
             </form>
         </div>
     </div>
