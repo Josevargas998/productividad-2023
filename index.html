@@ -25,10 +25,98 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbwlDHLat-WqQ-p9Se1KMy8P8Bh4nqEFT2ZoAFpVRBn3Qrxi_bBbALEKjWuStLX9gqxNpw/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbwsmnZuv-C6c89ySnW4gC_osAgndlB5kbsCTmbGEVj-iV0yv-PwdR80nUGvaQRzNu4cWA/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
+
+        let baseDocentes = []; // ✅ BASE DE DATOS DE DOCENTES
+
+        // ==================== CARGAR DOCENTES AL INICIAR ====================
+        async function cargarBaseDocentes() {
+            try {
+                console.log('🔄 Cargando base de docentes...');
+                
+                fetch(urlAppsScript + '?action=obtenerDocentes')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && Array.isArray(data)) {
+                            cargarDatalistDocentes(data);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ Error al cargar docentes:', error);
+                    });
+                    
+            } catch (error) {
+                console.error('❌ Error al cargar base de docentes:', error);
+            }
+        }
+
+        function cargarDatalistDocentes(docentes) {
+            if (!docentes || docentes.length === 0) {
+                console.log('⚠️ No se encontraron docentes en la base de datos');
+                return;
+            }
+            
+            baseDocentes = docentes;
+            const datalist = document.getElementById('lista-docentes');
+            
+            if (!datalist) {
+                console.error('❌ Elemento lista-docentes no encontrado');
+                return;
+            }
+            
+            datalist.innerHTML = '';
+            
+            docentes.forEach(doc => {
+                const option = document.createElement('option');
+                option.value = doc.nombre;
+                datalist.appendChild(option);
+            });
+            
+            console.log(`✅ ${docentes.length} docentes cargados en el autocompletador`);
+        }
+
+        // ==================== AUTOCOMPLETAR DATOS DEL DOCENTE ====================
+        function autocompletarDocente() {
+            const input = document.getElementById('buscar-docente');
+            const nombreSeleccionado = input.value.trim();
+            
+            if (!nombreSeleccionado) return;
+            
+            const docente = baseDocentes.find(d => d.nombre === nombreSeleccionado);
+            
+            if (docente) {
+                document.getElementById('edit-documento').value = docente.cedula || '';
+                
+                const nacionalidadField = document.getElementById('edit-nacionalidad');
+                if (nacionalidadField) {
+                    nacionalidadField.value = docente.nacionalidad || '';
+                }
+                
+                const correoField = document.getElementById('edit-correo');
+                if (correoField) {
+                    correoField.value = docente.correo || '';
+                }
+                
+                ['edit-documento', 'edit-nacionalidad', 'edit-correo'].forEach(id => {
+                    const elem = document.getElementById(id);
+                    if (elem) {
+                        elem.classList.remove('bg-yellow-50');
+                        elem.classList.add('bg-green-100', 'border-green-500');
+                        setTimeout(() => {
+                            elem.classList.remove('bg-green-100', 'border-green-500');
+                            elem.classList.add('bg-yellow-50');
+                        }, 2000);
+                    }
+                });
+                
+                console.log('✅ Datos del docente autocompletados:', docente.nombre);
+            } else {
+                console.log('⚠️ Docente no encontrado en la base de datos:', nombreSeleccionado);
+            }
+        }
 
         const CONTRASEÑAS = {
             'JOSE': 'jose2026',
@@ -66,6 +154,18 @@
                 document.getElementById('header-title').innerText = "COMPILADO Y LIQUIDACIÓN (LINA)";
                 document.getElementById('header-bg').classList.add('bg-blue-900');
                 cargarPendientesLina();
+                
+                // ✅ NUEVO: Cargar base de docentes al iniciar sesión de Lina
+                cargarBaseDocentes();
+                
+                // ✅ NUEVO: Event listeners para el autocompletado
+                setTimeout(() => {
+                    const buscadorDocente = document.getElementById('buscar-docente');
+                    if (buscadorDocente) {
+                        buscadorDocente.addEventListener('change', autocompletarDocente);
+                        buscadorDocente.addEventListener('blur', autocompletarDocente);
+                    }
+                }, 500);
             }
         }
 
@@ -818,43 +918,88 @@
                     
                     <div class="mb-6">
                         <p class="text-sm font-bold text-gray-700 mb-3 border-b pb-2">👤 INFORMACIÓN DEL DOCENTE</p>
-                        <div class="grid grid-cols-5 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">DOC. IDENTIDAD</label>
-                                <input type="text" id="edit-documento" class="w-full border-2 border-blue-300 p-2 rounded text-sm">
+                        
+                        <!-- ✅ BUSCADOR DE DOCENTE CON AUTOCOMPLETADO -->
+                        <div class="mb-4 bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg border-2 border-green-300 shadow-sm">
+                            <label class="block text-xs font-bold text-green-700 mb-2">
+                                🔍 BUSCAR DOCENTE POR NOMBRE
+                            </label>
+                            <input 
+                                list="lista-docentes" 
+                                id="buscar-docente" 
+                                placeholder="Comienza a escribir el nombre del docente..." 
+                                class="w-full border-2 border-green-400 p-3 rounded-lg text-sm font-medium focus:border-green-600 focus:ring-2 focus:ring-green-200 transition-all"
+                                autocomplete="off">
+                            <datalist id="lista-docentes"></datalist>
+                            <p class="text-xs text-green-600 mt-2 flex items-center gap-1">
+                                💡 <span>Al seleccionar un docente, sus datos básicos se llenarán automáticamente</span>
+                            </p>
+                        </div>
+                        
+                        <!-- DATOS AUTOCOMPLETADOS (solo lectura) -->
+                        <div class="bg-yellow-50 p-3 rounded-lg mb-3 border border-yellow-200">
+                            <p class="text-xs font-bold text-yellow-700 mb-2">📋 DATOS DEL DOCENTE (autocompletados)</p>
+                            <div class="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">CÉDULA</label>
+                                    <input type="text" id="edit-documento" 
+                                           class="w-full border-2 border-yellow-300 p-2 rounded text-sm bg-white" 
+                                           readonly>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">NACIONALIDAD</label>
+                                    <input type="text" id="edit-nacionalidad" 
+                                           class="w-full border-2 border-yellow-300 p-2 rounded text-sm bg-white" 
+                                           readonly>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">CORREO INSTITUCIONAL</label>
+                                    <input type="email" id="edit-correo" 
+                                           class="w-full border-2 border-yellow-300 p-2 rounded text-sm bg-white" 
+                                           readonly>
+                                </div>
                             </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">ESCOLARIDAD</label>
-                                <select id="edit-escolaridad" class="w-full border-2 border-blue-300 p-2 rounded text-sm">
-                                    <option value="">Seleccionar</option>
-                                    <option>Pregrado</option>
-                                    <option>Especialización</option>
-                                    <option>Maestría</option>
-                                    <option>Doctorado</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">CATEGORÍA DOCENTE</label>
-                                <select id="edit-categoria-doc" class="w-full border-2 border-blue-300 p-2 rounded text-sm">
-                                    <option value="">Seleccionar</option>
-                                    <option>Auxiliar</option>
-                                    <option>Asistente</option>
-                                    <option>Asociado</option>
-                                    <option>Titular</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">DEDICACIÓN</label>
-                                <select id="edit-dedicacion" class="w-full border-2 border-blue-300 p-2 rounded text-sm">
-                                    <option value="">Seleccionar</option>
-                                    <option>TC</option>
-                                    <option>MT</option>
-                                    <option>Cátedra</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">FACULTAD</label>
-                                <input type="text" id="edit-facultad" class="w-full border-2 border-blue-300 p-2 rounded text-sm">
+                        </div>
+                        
+                        <!-- DATOS EDITABLES -->
+                        <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                            <p class="text-xs font-bold text-blue-700 mb-2">✏️ INFORMACIÓN ACADÉMICA (editable)</p>
+                            <div class="grid grid-cols-4 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">ESCOLARIDAD</label>
+                                    <select id="edit-escolaridad" class="w-full border-2 border-blue-300 p-2 rounded text-sm">
+                                        <option value="">Seleccionar</option>
+                                        <option>Pregrado</option>
+                                        <option>Especialización</option>
+                                        <option>Maestría</option>
+                                        <option>Doctorado</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">CATEGORÍA DOCENTE</label>
+                                    <select id="edit-categoria-doc" class="w-full border-2 border-blue-300 p-2 rounded text-sm">
+                                        <option value="">Seleccionar</option>
+                                        <option>Auxiliar</option>
+                                        <option>Asistente</option>
+                                        <option>Asociado</option>
+                                        <option>Titular</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">DEDICACIÓN</label>
+                                    <select id="edit-dedicacion" class="w-full border-2 border-blue-300 p-2 rounded text-sm">
+                                        <option value="">Seleccionar</option>
+                                        <option>TC</option>
+                                        <option>MT</option>
+                                        <option>Cátedra</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">FACULTAD</label>
+                                    <input type="text" id="edit-facultad" 
+                                           class="w-full border-2 border-blue-300 p-2 rounded text-sm"
+                                           placeholder="Ej: Ingeniería">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -930,4 +1075,4 @@
     </div>
 
 </body>
-</html>
+</html>ur
