@@ -25,7 +25,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbzqRstp6fOJRYSvuhOH08TffbCCd2uhq8-pXml7BD4trpchpaOlNjyr8-m4SlcZyoXGmw/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbxKYLm-mjwc9j7rz8xTIUHbMCMkoPHD64DLomE6mPnm8ubgJg5jbRWF3gJb7gnGVBC0OQ/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
@@ -790,6 +790,7 @@
             }
         }
 
+
         window.guardarEvaluacion = async () => {
             if (!idRegistroActual) {
                 alert("❌ No hay registro seleccionado");
@@ -801,65 +802,75 @@
             btnGuardar.innerHTML = '<span>⏳</span> GUARDANDO...';
 
             try {
-                const dataActualizada = {
+                // ✅ PRIMERO: Obtener TODOS los datos originales de Firebase
+                const docRef = doc(db, "solicitudes", idRegistroActual);
+                const docSnap = await getDoc(docRef);
+                const datosOriginales = docSnap.data();
+
+                // ✅ SEGUNDO: Crear objeto con TODOS los datos (originales + actualizados)
+                const dataCompleta = {
+                    // Mantener TODOS los datos de José
+                    ...datosOriginales,
+                    
+                    // Sobrescribir con los datos de Lina
                     tipo_registro: "LINA",
                     timestamp_lina: new Date().toISOString(),
+                    
+                    // Datos del docente
                     documento_id: document.getElementById('edit-documento').value,
                     escolaridad: document.getElementById('edit-escolaridad').value,
                     categoria_docente: document.getElementById('edit-categoria-doc').value,
                     dedicacion: document.getElementById('edit-dedicacion').value,
                     facultad: document.getElementById('edit-facultad').value,
+                    programa: document.getElementById('edit-programa').value,
                     
-                    // ✅ ESTADO EDITABLE
+                    // Estado editable
                     estado_ciarp: document.getElementById('edit-estado-ciarp').value,
                     
-                    // ✅ SOLO 2 EVALUACIONES + PUNTAJE FINAL
+                    // Evaluaciones
                     puntaje_eval1: parseFloat(document.getElementById('edit-puntaje-eval1').value) || 0,
                     puntaje_eval2: parseFloat(document.getElementById('edit-puntaje-eval2').value) || 0,
                     puntaje_asignado: parseFloat(document.getElementById('edit-puntaje-asignado').value) || 0,
                     
+                    // Documentación
                     acta_ciarp: document.getElementById('edit-acta').value,
                     resolucion: document.getElementById('edit-resolucion').value,
                     observaciones_lina: document.getElementById('edit-obs-lina').value
                 };
 
-                // Campos específicos según categoría
-                const docRef = doc(db, "solicitudes", idRegistroActual);
-                const docSnap = await getDoc(docRef);
-                const datosOriginales = docSnap.data();
-
-                dataActualizada.categoria = datosOriginales.categoria;
-                dataActualizada.titulo_producto = datosOriginales.titulo_producto;
-                dataActualizada.autor = datosOriginales.autor;
-
+                // ✅ Agregar campos específicos según categoría
                 if (datosOriginales.categoria === "Artículos Indexados") {
-                    dataActualizada.modalidad = document.getElementById('edit-modalidad')?.value || '';
-                    dataActualizada.tipo = document.getElementById('edit-tipo')?.value || '';
-                    dataActualizada.pais = document.getElementById('edit-pais')?.value || '';
-                    dataActualizada.issn = document.getElementById('edit-issn')?.value || '';
-                    dataActualizada.clasificacion_publindex = document.getElementById('edit-clasificacion')?.value || '';
-                    dataActualizada.editorial = document.getElementById('edit-editorial')?.value || '';
-                    dataActualizada.anio_publicacion = document.getElementById('edit-anio-pub')?.value || '';
-                    dataActualizada.num_autores = parseInt(document.getElementById('edit-num-autores')?.value) || 0;
-                    dataActualizada.universidades_coautores = document.getElementById('edit-universidades')?.value || '';
+                    dataCompleta.modalidad = document.getElementById('edit-modalidad')?.value || '';
+                    dataCompleta.tipo = document.getElementById('edit-tipo')?.value || '';
+                    dataCompleta.pais = document.getElementById('edit-pais')?.value || '';
+                    dataCompleta.issn = document.getElementById('edit-issn')?.value || '';
+                    dataCompleta.clasificacion_publindex = document.getElementById('edit-clasificacion')?.value || '';
+                    dataCompleta.editorial = document.getElementById('edit-editorial')?.value || '';
+                    dataCompleta.anio_publicacion = document.getElementById('edit-anio-pub')?.value || '';
+                    dataCompleta.num_autores = parseInt(document.getElementById('edit-num-autores')?.value) || 0;
+                    dataCompleta.universidades_coautores = document.getElementById('edit-universidades')?.value || '';
                 } else if (datosOriginales.categoria === "Artículos No Indexados") {
-                    dataActualizada.issn = document.getElementById('edit-issn')?.value || '';
+                    dataCompleta.issn = document.getElementById('edit-issn')?.value || '';
                 } else if (datosOriginales.categoria?.includes("Libro")) {
-                    dataActualizada.isbn = document.getElementById('edit-isbn')?.value || '';
-                    dataActualizada.anio_publicacion = document.getElementById('edit-anio-pub')?.value || '';
-                    dataActualizada.editorial = document.getElementById('edit-editorial')?.value || '';
+                    dataCompleta.isbn = document.getElementById('edit-isbn')?.value || '';
+                    dataCompleta.anio_publicacion = document.getElementById('edit-anio-pub')?.value || '';
+                    dataCompleta.editorial = document.getElementById('edit-editorial')?.value || '';
                 }
 
-                // Actualizar Firebase
-                await updateDoc(docRef, dataActualizada);
+                console.log("📤 Enviando datos completos a Google Sheets:", dataCompleta);
 
-                // Actualizar Google Sheets
-                await fetch(urlAppsScript, {
+                // ✅ Actualizar Firebase
+                await updateDoc(docRef, dataCompleta);
+
+                // ✅ Actualizar Google Sheets con TODOS los datos
+                const response = await fetch(urlAppsScript, {
                     method: 'POST',
                     mode: 'no-cors',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(dataActualizada)
+                    body: JSON.stringify(dataCompleta)
                 });
+
+                console.log("✅ Datos enviados correctamente a Google Sheets");
 
                 alert("✅ Evaluación guardada correctamente");
                 cerrarModal();
@@ -1277,4 +1288,3 @@
 
 </body>
 </html>
-
