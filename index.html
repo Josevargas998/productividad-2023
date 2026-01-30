@@ -1,15 +1,373 @@
-<!-- ==================== FRONTEND MEJORADO CON SINCRONIZACIÓN BIDIRECCIONAL ==================== -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión CIARP - Completo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
 
-<script type="module">
-    // ... imports existentes de Firebase ...
+<!-- ==================== CONTENEDOR PRINCIPAL ==================== -->
+<div id="app" class="container mx-auto px-4 py-8">
     
+    <!-- PANTALLA DE INICIO DE SESIÓN -->
+    <div id="pantalla-login" class="max-w-md mx-auto">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 text-center">
+            <h1 class="text-3xl font-bold text-[#003d2b] mb-6">SISTEMA CIARP</h1>
+            <div class="space-y-4">
+                <button onclick="iniciarSesion('JOSE')" 
+                        class="w-full bg-[#003d2b] hover:bg-[#002d1f] text-white font-bold py-4 px-6 rounded-lg transition-all transform hover:scale-105">
+                    👨‍💼 INGRESAR COMO JOSÉ
+                </button>
+                <button onclick="iniciarSesion('LINA')" 
+                        class="w-full bg-[#1e3a8a] hover:bg-[#1e40af] text-white font-bold py-4 px-6 rounded-lg transition-all transform hover:scale-105">
+                    👩‍💼 INGRESAR COMO LINA
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL JOSÉ -->
+    <div id="panel-jose" class="hidden">
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-[#003d2b]">PANEL DE JOSÉ - INGRESO DE DATOS</h2>
+                <button onclick="cerrarSesion()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
+                    🚪 Cerrar Sesión
+                </button>
+            </div>
+
+            <!-- FORMULARIO JOSÉ -->
+            <form id="form-jose" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Categoría *</label>
+                        <select id="categoria" required class="w-full border rounded-lg px-3 py-2">
+                            <option value="">Seleccione...</option>
+                            <option value="Artículos Indexados">Artículos Indexados</option>
+                            <option value="Artículos No Indexados">Artículos No Indexados</option>
+                            <option value="Libros">Libros</option>
+                            <option value="Capítulos">Capítulos de Libro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Año *</label>
+                        <input type="number" id="anio" required class="w-full border rounded-lg px-3 py-2" min="2020" max="2030">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Semestre *</label>
+                        <select id="semestre" required class="w-full border rounded-lg px-3 py-2">
+                            <option value="">Seleccione...</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Fecha Recibido *</label>
+                        <input type="date" id="fecha-recibido" required class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-bold mb-2">Título del Producto *</label>
+                        <input type="text" id="nombre_articulo" class="w-full border rounded-lg px-3 py-2" placeholder="Ingrese el título">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Autor/Docente *</label>
+                        <input type="text" id="autor" required class="w-full border rounded-lg px-3 py-2" list="lista-docentes">
+                        <datalist id="lista-docentes"></datalist>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Programa</label>
+                        <input type="text" id="programa" class="w-full border rounded-lg px-3 py-2">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Documentación Completa</label>
+                        <select id="doc-completa" class="w-full border rounded-lg px-3 py-2">
+                            <option value="Sí">Sí</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold mb-2">Estado Inicial</label>
+                        <select id="estado-ciarp" class="w-full border rounded-lg px-3 py-2">
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Aprobado">Aprobado</option>
+                            <option value="No Aprobado">No Aprobado</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-bold mb-2">Observaciones</label>
+                        <textarea id="observaciones-jose" rows="3" class="w-full border rounded-lg px-3 py-2"></textarea>
+                    </div>
+                </div>
+
+                <button type="button" id="btn-enviar-jose" onclick="enviarSolicitud()"
+                        class="w-full bg-[#003d2b] hover:bg-[#002d1f] text-white font-bold py-3 rounded-lg transition-all">
+                    📤 ENVIAR SOLICITUD
+                </button>
+            </form>
+        </div>
+
+        <!-- TABLA DE REGISTROS JOSÉ -->
+        <div class="mt-8 bg-white rounded-xl shadow-lg p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <span class="bg-[#003d2b] text-white p-2 rounded">📊</span>
+                    REGISTROS INGRESADOS
+                </h3>
+                <button onclick="cargarTablaJose()" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all hover:scale-105">
+                    🔄 ACTUALIZAR
+                </button>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse border">
+                    <thead>
+                        <tr class="bg-[#003d2b] text-white">
+                            <th class="border px-3 py-2 text-xs font-bold">AÑO</th>
+                            <th class="border px-3 py-2 text-xs font-bold">SEM</th>
+                            <th class="border px-3 py-2 text-xs font-bold">TÍTULO</th>
+                            <th class="border px-3 py-2 text-xs font-bold">AUTOR</th>
+                            <th class="border px-3 py-2 text-xs font-bold">FECHA</th>
+                            <th class="border px-3 py-2 text-xs font-bold">ESTADO</th>
+                            <th class="border px-3 py-2 text-xs font-bold">ACCIONES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-registros-jose">
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-gray-500">
+                                Seleccione una categoría para ver los registros
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL LINA -->
+    <div id="panel-lina" class="hidden">
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-[#1e3a8a]">PANEL DE LINA - EVALUACIÓN</h2>
+                <button onclick="cerrarSesion()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
+                    🚪 Cerrar Sesión
+                </button>
+            </div>
+
+            <!-- TABLA DE PENDIENTES -->
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse border">
+                    <thead>
+                        <tr class="bg-[#1e3a8a] text-white">
+                            <th class="border px-3 py-2 text-xs">CATEGORÍA</th>
+                            <th class="border px-3 py-2 text-xs">TÍTULO</th>
+                            <th class="border px-3 py-2 text-xs">AUTOR</th>
+                            <th class="border px-3 py-2 text-xs">FECHA</th>
+                            <th class="border px-3 py-2 text-xs">ESTADO</th>
+                            <th class="border px-3 py-2 text-xs">ACCIONES</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-pendientes-lina"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE EVALUACIÓN LINA -->
+<div id="modal-evaluacion" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto m-4">
+        <h3 class="text-2xl font-bold text-[#1e3a8a] mb-6">EVALUACIÓN COMPLETA</h3>
+        
+        <input type="hidden" id="modal-id">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-bold mb-2">Estado Final</label>
+                <select id="edit-estado" class="w-full border rounded-lg px-3 py-2">
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="Aprobado">Aprobado</option>
+                    <option value="No Aprobado">No Aprobado</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">Documento ID</label>
+                <input type="text" id="edit-doc-id" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">Escolaridad</label>
+                <input type="text" id="edit-escolaridad" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">Categoría Docente</label>
+                <input type="text" id="edit-categoria-docente" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">Dedicación</label>
+                <input type="text" id="edit-dedicacion" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">Facultad</label>
+                <input type="text" id="edit-facultad" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">Evaluación 1</label>
+                <input type="number" id="edit-eval1" step="0.01" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">Evaluación 2</label>
+                <input type="number" id="edit-eval2" step="0.01" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">Puntaje Final</label>
+                <input type="number" id="edit-puntaje" step="0.01" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">Acta CIARP</label>
+                <input type="text" id="edit-acta" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">Resolución</label>
+                <input type="text" id="edit-resolucion" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">ISSN</label>
+                <input type="text" id="edit-issn" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">ISBN</label>
+                <input type="text" id="edit-isbn" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">Editorial</label>
+                <input type="text" id="edit-editorial" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">Año Publicación</label>
+                <input type="text" id="edit-anio-pub" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">Clasificación Publindex</label>
+                <input type="text" id="edit-clasificacion" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2">Núm. Autores</label>
+                <input type="number" id="edit-num-autores" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm font-bold mb-2">Universidades Coautores</label>
+                <input type="text" id="edit-universidades" class="w-full border rounded-lg px-3 py-2">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm font-bold mb-2">Observaciones</label>
+                <textarea id="edit-observaciones" rows="3" class="w-full border rounded-lg px-3 py-2"></textarea>
+            </div>
+        </div>
+
+        <div class="flex gap-4 mt-6">
+            <button id="btn-guardar-lina" onclick="guardarEvaluacion()"
+                    class="flex-1 bg-[#1e3a8a] hover:bg-[#1e40af] text-white font-bold py-3 rounded-lg transition-all">
+                <span>💾</span> GUARDAR COMPILADO COMPLETO
+            </button>
+            <button onclick="cerrarModal()"
+                    class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 rounded-lg transition-all">
+                ❌ CANCELAR
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== FIREBASE Y JAVASCRIPT ==================== -->
+<script type="module">
+    // IMPORTAR FIREBASE
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, doc, updateDoc, getDoc, deleteDoc, limit } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+    // CONFIGURACIÓN FIREBASE
+    const firebaseConfig = {
+        apiKey: "TU_API_KEY",
+        authDomain: "TU_AUTH_DOMAIN",
+        projectId: "TU_PROJECT_ID",
+        storageBucket: "TU_STORAGE_BUCKET",
+        messagingSenderId: "TU_MESSAGING_SENDER_ID",
+        appId: "TU_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // URL DE APPS SCRIPT
+    const urlAppsScript = "https://script.google.com/macros/s/AKfycbzmqI6kYjm6fKE__pspHGSZ4bMQS5nCtpb2mZqisq5z32Hrdw5vfTfZYyrGSfHJU2PcHA/exec";
+
+    // VARIABLES GLOBALES
+    let rolActual = null;
     let registrosJose = [];
     let intervalActualizacion = null;
     let intervalSincronizacionLina = null;
-    
-    // ==================== SINCRONIZACIÓN BIDIRECCIONAL MEJORADA ====================
-    
-    // 1. GUARDAR NÚMERO DE FILA EN FIREBASE al crear registro
+
+    // ==================== FUNCIONES DE SESIÓN ====================
+
+    window.iniciarSesion = function(rol) {
+        rolActual = rol;
+        document.getElementById('pantalla-login').classList.add('hidden');
+        
+        if (rol === 'JOSE') {
+            document.getElementById('panel-jose').classList.remove('hidden');
+            cargarDocentes();
+            
+            // Cargar tabla al cambiar categoría
+            setTimeout(() => {
+                const selectCategoria = document.getElementById('categoria');
+                if (selectCategoria) {
+                    selectCategoria.addEventListener('change', cargarTablaJose);
+                    if (selectCategoria.value) {
+                        cargarTablaJose();
+                    }
+                }
+            }, 500);
+        } else if (rol === 'LINA') {
+            document.getElementById('panel-lina').classList.remove('hidden');
+            iniciarSincronizacionAutomatica();
+            cargarPendientesLina();
+        }
+    };
+
+    window.cerrarSesion = function() {
+        rolActual = null;
+        if (intervalSincronizacionLina) {
+            clearInterval(intervalSincronizacionLina);
+        }
+        document.getElementById('panel-jose').classList.add('hidden');
+        document.getElementById('panel-lina').classList.add('hidden');
+        document.getElementById('pantalla-login').classList.remove('hidden');
+    };
+
+    // ==================== CARGAR DOCENTES ====================
+
+    async function cargarDocentes() {
+        try {
+            const response = await fetch(`${urlAppsScript}?action=obtenerDocentes`);
+            const docentes = await response.json();
+            
+            const datalist = document.getElementById('lista-docentes');
+            datalist.innerHTML = '';
+            
+            docentes.forEach(doc => {
+                const option = document.createElement('option');
+                option.value = doc.nombre;
+                datalist.appendChild(option);
+            });
+            
+            console.log('✅ Docentes cargados:', docentes.length);
+        } catch (error) {
+            console.error('❌ Error al cargar docentes:', error);
+        }
+    }
+
+    // ==================== SINCRONIZACIÓN BIDIRECCIONAL ====================
+
     async function guardarFilaEnFirebase(firebaseId, fila, categoria) {
         try {
             const docRef = doc(db, "solicitudes", firebaseId);
@@ -23,8 +381,7 @@
             console.error("❌ Error al guardar fila:", error);
         }
     }
-    
-    // 2. CARGAR REGISTROS DESDE GOOGLE SHEETS
+
     async function cargarRegistrosDesdeSheets(categoria) {
         try {
             const response = await fetch(
@@ -42,9 +399,9 @@
             return [];
         }
     }
-    
-    // ==================== TABLA DE REGISTROS PARA JOSÉ ====================
-    
+
+    // ==================== TABLA DE REGISTROS JOSÉ ====================
+
     window.cargarTablaJose = async () => {
         const categoria = document.getElementById('categoria').value;
         if (!categoria) {
@@ -54,7 +411,6 @@
         }
         
         try {
-            // Cargar desde Firebase
             const q = query(
                 collection(db, "solicitudes"),
                 where("categoria", "==", categoria),
@@ -105,16 +461,15 @@
                 '<tr><td colspan="7" class="text-center py-4 text-red-500">Error al cargar registros</td></tr>';
         }
     };
-    
-    // ==================== ELIMINAR REGISTRO (FIREBASE + SHEETS) ====================
-    
+
+    // ==================== ELIMINAR REGISTRO ====================
+
     window.eliminarRegistroJose = async (firebaseId, categoria, fila) => {
         if (!confirm('¿Está seguro de eliminar este registro? Esta acción no se puede deshacer.')) {
             return;
         }
         
         try {
-            // 1. Eliminar de Google Sheets
             const response = await fetch(
                 `${urlAppsScript}?action=eliminarRegistro&categoria=${encodeURIComponent(categoria)}&fila=${fila}`,
                 { method: 'GET' }
@@ -123,13 +478,10 @@
             const result = await response.json();
             
             if (result.status === 'success') {
-                // 2. Eliminar de Firebase
                 const docRef = doc(db, "solicitudes", firebaseId);
                 await deleteDoc(docRef);
                 
                 alert(`✅ Registro eliminado: ${result.titulo}`);
-                
-                // 3. Recargar tabla
                 cargarTablaJose();
             } else {
                 throw new Error(result.message || 'Error al eliminar de Sheets');
@@ -140,9 +492,9 @@
             alert("❌ Error al eliminar: " + error.message);
         }
     };
-    
-    // ==================== ENVIAR SOLICITUD MEJORADA (JOSÉ) ====================
-    
+
+    // ==================== ENVIAR SOLICITUD JOSÉ ====================
+
     window.enviarSolicitud = async () => {
         const categoria = document.getElementById('categoria').value;
         const anio = document.getElementById('anio').value;
@@ -159,14 +511,7 @@
             return;
         }
 
-        let tituloProducto = '';
-        if (categoria.includes("Artículos")) {
-            tituloProducto = document.getElementById('nombre_articulo')?.value || '';
-        } else if (categoria.includes("Libro")) {
-            tituloProducto = document.getElementById('titulo_libro')?.value || '';
-        } else if (categoria.includes("Capítulo")) {
-            tituloProducto = document.getElementById('titulo_capitulo')?.value || '';
-        }
+        let tituloProducto = document.getElementById('nombre_articulo')?.value || '';
 
         if (!tituloProducto) {
             alert("⚠️ Complete el título del producto");
@@ -178,7 +523,6 @@
         btnEnviar.innerText = "⏳ ENVIANDO...";
 
         try {
-            // 1. CREAR EN FIREBASE
             const datosFirebase = {
                 categoria: categoria,
                 anio: anio,
@@ -197,7 +541,6 @@
             const docRef = await addDoc(collection(db, "solicitudes"), datosFirebase);
             console.log("✅ Registro creado en Firebase:", docRef.id);
 
-            // 2. CREAR EN GOOGLE SHEETS
             const datosSheets = {
                 ...datosFirebase,
                 tipo_registro: "JOSE"
@@ -212,15 +555,10 @@
             const result = await response.json();
             
             if (result.status === 'success' && result.fila) {
-                // 3. GUARDAR NÚMERO DE FILA EN FIREBASE
                 await guardarFilaEnFirebase(docRef.id, result.fila, categoria);
                 
                 alert("✅ Registro creado y sincronizado correctamente");
-                
-                // Limpiar formulario
                 document.getElementById('form-jose').reset();
-                
-                // Recargar tabla
                 cargarTablaJose();
             } else {
                 throw new Error("Error al crear en Sheets");
@@ -234,9 +572,100 @@
             btnEnviar.innerText = "📤 ENVIAR SOLICITUD";
         }
     };
-    
-    // ==================== GUARDAR EVALUACIÓN (LINA) - MEJORADA ====================
-    
+
+    // ==================== CARGAR PENDIENTES LINA ====================
+
+    window.cargarPendientesLina = async () => {
+        try {
+            const q = query(collection(db, "solicitudes"), orderBy("timestamp", "desc"));
+            const querySnapshot = await getDocs(q);
+            
+            const tbody = document.getElementById('tabla-pendientes-lina');
+            tbody.innerHTML = '';
+            
+            if (querySnapshot.empty) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">No hay registros pendientes</td></tr>';
+                return;
+            }
+            
+            querySnapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                const estadoColor = data.estado_ciarp === 'Aprobado' ? 'bg-green-100 text-green-800' : 
+                                   data.estado_ciarp === 'No Aprobado' ? 'bg-red-100 text-red-800' : 
+                                   'bg-yellow-100 text-yellow-800';
+                
+                const row = `
+                    <tr class="hover:bg-gray-50">
+                        <td class="border px-2 py-2 text-xs">${data.categoria || ''}</td>
+                        <td class="border px-2 py-2 text-xs font-semibold">${data.titulo_producto || ''}</td>
+                        <td class="border px-2 py-2 text-xs">${data.autor || ''}</td>
+                        <td class="border px-2 py-2 text-xs">${data.fecha_recibido || ''}</td>
+                        <td class="border px-2 py-2 text-center">
+                            <span class="px-2 py-1 rounded text-xs font-bold ${estadoColor}">
+                                ${data.estado_ciarp || 'Pendiente'}
+                            </span>
+                        </td>
+                        <td class="border px-2 py-2 text-center">
+                            <button onclick="abrirModalEvaluacion('${docSnap.id}')" 
+                                    class="bg-[#1e3a8a] hover:bg-[#1e40af] text-white px-3 py-1 rounded text-xs font-bold">
+                                ✏️ Evaluar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+            
+        } catch (error) {
+            console.error("❌ Error al cargar pendientes:", error);
+        }
+    };
+
+    // ==================== MODAL EVALUACIÓN ====================
+
+    window.abrirModalEvaluacion = async (id) => {
+        try {
+            const docRef = doc(db, "solicitudes", id);
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                
+                document.getElementById('modal-id').value = id;
+                document.getElementById('edit-estado').value = data.estado_ciarp || 'Pendiente';
+                document.getElementById('edit-doc-id').value = data.documento_id || '';
+                document.getElementById('edit-escolaridad').value = data.escolaridad || '';
+                document.getElementById('edit-categoria-docente').value = data.categoria_docente || '';
+                document.getElementById('edit-dedicacion').value = data.dedicacion || '';
+                document.getElementById('edit-facultad').value = data.facultad || '';
+                document.getElementById('edit-eval1').value = data.puntaje_eval1 || 0;
+                document.getElementById('edit-eval2').value = data.puntaje_eval2 || 0;
+                document.getElementById('edit-puntaje').value = data.puntaje_asignado || 0;
+                document.getElementById('edit-acta').value = data.acta_ciarp || '';
+                document.getElementById('edit-resolucion').value = data.resolucion || '';
+                document.getElementById('edit-issn').value = data.issn || '';
+                document.getElementById('edit-isbn').value = data.isbn || '';
+                document.getElementById('edit-editorial').value = data.editorial || '';
+                document.getElementById('edit-anio-pub').value = data.anio_publicacion || '';
+                document.getElementById('edit-clasificacion').value = data.clasificacion_publindex || '';
+                document.getElementById('edit-num-autores').value = data.num_autores || 0;
+                document.getElementById('edit-universidades').value = data.universidades_coautores || '';
+                document.getElementById('edit-observaciones').value = data.observaciones_lina || '';
+                
+                document.getElementById('modal-evaluacion').classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error("❌ Error:", error);
+            alert("❌ Error al cargar datos");
+        }
+    };
+
+    window.cerrarModal = function() {
+        document.getElementById('modal-evaluacion').classList.add('hidden');
+    };
+
+    // ==================== GUARDAR EVALUACIÓN ====================
+
     window.guardarEvaluacion = async () => {
         const idActual = document.getElementById('modal-id').value;
         
@@ -259,7 +688,6 @@
 
             const datosOriginales = docSnap.data();
 
-            // DATOS COMPLETOS A ACTUALIZAR
             const dataCompleta = {
                 timestamp_lina: new Date().toISOString(),
                 estado_ciarp: document.getElementById('edit-estado').value,
@@ -275,7 +703,6 @@
                 resolucion: document.getElementById('edit-resolucion').value,
                 observaciones_lina: document.getElementById('edit-observaciones').value,
                 
-                // ✅ INCLUIR DATOS ORIGINALES PARA SHEETS
                 categoria: datosOriginales.categoria,
                 titulo_producto: datosOriginales.titulo_producto,
                 autor: datosOriginales.autor,
@@ -286,14 +713,12 @@
                 doc_completa: datosOriginales.doc_completa,
                 observaciones_jose: datosOriginales.observaciones_jose,
                 
-                // ✅ INCLUIR NÚMERO DE FILA Y CATEGORÍA
                 _fila: datosOriginales._fila,
                 _categoria: datosOriginales._categoria,
                 
                 tipo_registro: "LINA"
             };
 
-            // Campos específicos por categoría
             if (datosOriginales.categoria === "Artículos Indexados") {
                 dataCompleta.issn = document.getElementById('edit-issn')?.value || '';
                 dataCompleta.clasificacion_publindex = document.getElementById('edit-clasificacion')?.value || '';
@@ -311,14 +736,12 @@
 
             console.log("📤 Enviando actualización completa a Sheets:", dataCompleta);
 
-            // 1. ACTUALIZAR FIREBASE
             await updateDoc(docRef, dataCompleta);
             console.log("✅ Firebase actualizado");
 
-            // 2. ACTUALIZAR GOOGLE SHEETS
             const response = await fetch(urlAppsScript, {
                 method: 'POST',
-                mode: 'no-cors', // Importante para evitar CORS
+                mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dataCompleta)
             });
@@ -337,9 +760,9 @@
             btnGuardar.innerHTML = '<span>💾</span> GUARDAR COMPILADO COMPLETO';
         }
     };
-    
-    // ==================== SINCRONIZACIÓN AUTOMÁTICA DESDE SHEETS (LINA) ====================
-    
+
+    // ==================== SINCRONIZACIÓN AUTOMÁTICA ====================
+
     async function sincronizarDesdeSheets() {
         if (rolActual !== 'LINA') return;
         
@@ -356,7 +779,6 @@
                     
                     if (!titulo || !autor) continue;
                     
-                    // Buscar en Firebase por título + autor
                     const q = query(
                         collection(db, "solicitudes"),
                         where("titulo_producto", "==", titulo),
@@ -370,11 +792,9 @@
                         const docSnap = querySnapshot.docs[0];
                         const dataFirebase = docSnap.data();
                         
-                        // Comparar timestamps
                         const timestampSheets = regSheet["TIMESTAMP LINA"];
                         const timestampFirebase = dataFirebase.timestamp_lina;
                         
-                        // Si Sheets tiene cambios más recientes
                         if (timestampSheets && timestampSheets !== timestampFirebase) {
                             const actualizacion = {
                                 puntaje_eval1: parseFloat(regSheet["EVAL 1"]) || 0,
@@ -403,7 +823,6 @@
             
             if (totalActualizados > 0) {
                 console.log(`✅ ${totalActualizados} registros sincronizados desde Sheets`);
-                // Recargar la tabla de pendientes si hay actualizaciones
                 cargarPendientesLina();
             }
             
@@ -411,98 +830,26 @@
             console.error("⚠️ Error en sincronización automática:", error);
         }
     }
-    
-    // Iniciar sincronización automática para Lina (cada 20 segundos)
+
     function iniciarSincronizacionAutomatica() {
         if (intervalSincronizacionLina) {
             clearInterval(intervalSincronizacionLina);
         }
         
-        // Sincronizar cada 20 segundos
         intervalSincronizacionLina = setInterval(sincronizarDesdeSheets, 20000);
-        
-        // Primera sincronización inmediata
         sincronizarDesdeSheets();
         
         console.log("✅ Sincronización automática activada (cada 20s)");
     }
-    
-    // ==================== MODIFICAR FUNCIÓN DE INICIO DE SESIÓN ====================
-    
-    const iniciarSesionOriginal = window.iniciarSesion;
-    window.iniciarSesion = function(rol) {
-        iniciarSesionOriginal(rol);
-        
-        if (rol === 'LINA') {
-            iniciarSincronizacionAutomatica();
-            cargarPendientesLina();
-        } else if (rol === 'JOSE') {
-            // Cargar tabla al cambiar categoría
-            setTimeout(() => {
-                const selectCategoria = document.getElementById('categoria');
-                if (selectCategoria) {
-                    selectCategoria.addEventListener('change', cargarTablaJose);
-                    // Cargar tabla si ya hay una categoría seleccionada
-                    if (selectCategoria.value) {
-                        cargarTablaJose();
-                    }
-                }
-            }, 500);
-        }
-    };
-    
-    // Limpiar intervalos al cerrar sesión
+
     window.addEventListener('beforeunload', () => {
         if (intervalSincronizacionLina) {
             clearInterval(intervalSincronizacionLina);
         }
     });
-
 </script>
 
-<!-- ==================== HTML: TABLA DE REGISTROS PARA JOSÉ ==================== -->
-
-<!-- Agregar esta sección en el panel de José, después del formulario -->
-
-<div class="mt-8 bg-white rounded-xl shadow-lg p-6">
-    <div class="flex justify-between items-center mb-4">
-        <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-            <span class="bg-[#003d2b] text-white p-2 rounded">📊</span>
-            REGISTROS INGRESADOS
-        </h3>
-        <button onclick="cargarTablaJose()" 
-                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all hover:scale-105">
-            🔄 ACTUALIZAR
-        </button>
-    </div>
-    
-    <div class="overflow-x-auto">
-        <table class="w-full border-collapse border">
-            <thead>
-                <tr class="bg-[#003d2b] text-white">
-                    <th class="border px-3 py-2 text-xs font-bold">AÑO</th>
-                    <th class="border px-3 py-2 text-xs font-bold">SEM</th>
-                    <th class="border px-3 py-2 text-xs font-bold">TÍTULO</th>
-                    <th class="border px-3 py-2 text-xs font-bold">AUTOR</th>
-                    <th class="border px-3 py-2 text-xs font-bold">FECHA</th>
-                    <th class="border px-3 py-2 text-xs font-bold">ESTADO</th>
-                    <th class="border px-3 py-2 text-xs font-bold">ACCIONES</th>
-                </tr>
-            </thead>
-            <tbody id="tabla-registros-jose">
-                <tr>
-                    <td colspan="7" class="text-center py-4 text-gray-500">
-                        Seleccione una categoría para ver los registros
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- ==================== ESTILOS ADICIONALES ==================== -->
 <style>
-    /* Animación para el botón de actualizar */
     @keyframes spin {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
@@ -512,9 +859,11 @@
         transform: scale(0.98);
     }
     
-    /* Hover effect para filas de tabla */
     tbody tr:hover {
         background-color: #f9fafb;
         transition: background-color 0.2s;
     }
 </style>
+
+</body>
+</html>
