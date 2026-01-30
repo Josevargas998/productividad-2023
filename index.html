@@ -25,7 +25,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycby5k8TtzwXC6iKEsOuuA4vllXnkWayqKYG-DpXn82taq3t45fEv7UFUdP2EVYobr6yt7g/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbzr7zZyuUCHAEDCCGmOGkKIvItfBgphSCMrRFrewjid6ZNjz4-TB412Rb-tA0L1oNKBRQ/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
@@ -101,17 +101,12 @@
             if (docente) {
                 document.getElementById('edit-documento').value = docente.cedula || '';
                 
-                const nacionalidadField = document.getElementById('edit-nacionalidad');
-                if (nacionalidadField) {
-                    nacionalidadField.value = docente.nacionalidad || '';
-                }
-                
                 const correoField = document.getElementById('edit-correo');
                 if (correoField) {
                     correoField.value = docente.correo || '';
                 }
                 
-                ['edit-documento', 'edit-nacionalidad', 'edit-correo'].forEach(id => {
+                ['edit-documento', 'edit-correo'].forEach(id => {
                     const elem = document.getElementById(id);
                     if (elem) {
                         elem.classList.remove('bg-yellow-50');
@@ -181,7 +176,10 @@
                     dedicacion: docente.dedicacion,
                     categoria: docente.categoria,
                     correo: docente.correo,
-                    contacto: docente.contacto
+                    contacto: docente.contacto,
+                    cargo: docente.cargo || '',                           // ✅ NUEVO
+                    deptoExpedicion: docente.deptoExpedicion || '',       // ✅ NUEVO
+                    municipioExpedicion: docente.municipioExpedicion || '' // ✅ NUEVO
                 };
                 
                 // Mostrar mensaje de confirmación
@@ -427,6 +425,9 @@
                     data.docente_categoria = window.datosDocenteSeleccionado.categoria || '';
                     data.docente_correo = window.datosDocenteSeleccionado.correo || '';
                     data.docente_contacto = window.datosDocenteSeleccionado.contacto || '';
+                    data.docente_cargo = window.datosDocenteSeleccionado.cargo || '';                      // ✅ NUEVO
+                    data.docente_deptoExpedicion = window.datosDocenteSeleccionado.deptoExpedicion || '';  // ✅ NUEVO
+                    data.docente_municipioExpedicion = window.datosDocenteSeleccionado.municipioExpedicion || ''; // ✅ NUEVO
                     console.log('✅ Datos del docente incluidos en la solicitud');
                 }
 
@@ -554,6 +555,14 @@
                 document.getElementById('info-programa').innerText = data.programa || '';
                 document.getElementById('info-estado-jose').innerText = data.estado_ciarp || 'Pendiente';
                 document.getElementById('info-obs-jose').innerText = data.observaciones_jose || 'Sin observaciones';
+                
+                // ✅ PRELLENAR EL BUSCADOR CON EL NOMBRE DEL AUTOR QUE JOSÉ INGRESÓ
+                const buscadorDocente = document.getElementById('buscar-docente');
+                if (buscadorDocente && data.autor) {
+                    buscadorDocente.value = data.autor;
+                    // Simular autocompletado automático
+                    autocompletarDocenteLina();
+                }
 
                 // Mostrar campos específicos de José
                 let camposJoseHtml = '';
@@ -1085,16 +1094,10 @@
                         <!-- DATOS AUTOCOMPLETADOS (solo lectura) -->
                         <div class="bg-yellow-50 p-3 rounded-lg mb-3 border border-yellow-200">
                             <p class="text-xs font-bold text-yellow-700 mb-2">📋 DATOS DEL DOCENTE (autocompletados)</p>
-                            <div class="grid grid-cols-3 gap-3">
+                            <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label class="block text-xs font-bold text-gray-600 mb-1">CÉDULA</label>
                                     <input type="text" id="edit-documento" 
-                                           class="w-full border-2 border-yellow-300 p-2 rounded text-sm bg-white" 
-                                           readonly>
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-600 mb-1">NACIONALIDAD</label>
-                                    <input type="text" id="edit-nacionalidad" 
                                            class="w-full border-2 border-yellow-300 p-2 rounded text-sm bg-white" 
                                            readonly>
                                 </div>
