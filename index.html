@@ -24,7 +24,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbyp7NuQmqNN8YyvgjjwmgB1euP7NeNTEi6tZG_ErwZAvE_bMmaw94UdjyGuOrbdg6z-/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbyIOp7XQLpT0XEbQWR978Iua5TdHEUAKvgPhjwGRxzy0R-xJM5xHN-TNlK7AX2Q9xWozg/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
@@ -194,19 +194,22 @@
                 console.log("✅ Firebase ID:", docRef.id);
 
                 // Enviar a Google Sheets
-                const response = await fetch(urlAppsScript, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
+                try {
+                    const response = await fetch(urlAppsScript, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
 
-                const result = await response.json();
-                
-                if (result.status === 'success' && result.fila) {
+                    // Con no-cors no podemos leer la respuesta, así que guardamos con valores por defecto
                     await updateDoc(doc(db, "solicitudes", docRef.id), {
-                        _fila: result.fila,
+                        _fila: null,
                         _categoria: categoria
                     });
+                } catch (sheetError) {
+                    console.warn("⚠️ No se pudo conectar con Sheets:", sheetError);
+                    // Continuar aunque falle Sheets, Firebase ya tiene los datos
                 }
 
                 alert("✅ Solicitud enviada correctamente");
@@ -329,11 +332,16 @@
                     categoria: originalData.categoria
                 };
 
-                await fetch(urlAppsScript, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(sheetData)
-                });
+                try {
+                    await fetch(urlAppsScript, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(sheetData)
+                    });
+                } catch (sheetError) {
+                    console.warn("⚠️ No se pudo conectar con Sheets:", sheetError);
+                }
 
                 alert("✅ Evaluación guardada correctamente");
                 cerrarModal();
