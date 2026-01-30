@@ -25,7 +25,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbzr7zZyuUCHAEDCCGmOGkKIvItfBgphSCMrRFrewjid6ZNjz4-TB412Rb-tA0L1oNKBRQ/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbw3i_twjNWKsHKzmJaUGs0jFtqLjRg0Npcgh_ebNqus37owLoOYfBH7D7_xvfi_26AfEw/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
@@ -99,6 +99,7 @@
             const docente = baseDocentes.find(d => d.nombre === nombreSeleccionado);
             
             if (docente) {
+                // Campos de solo lectura (amarillos)
                 document.getElementById('edit-documento').value = docente.cedula || '';
                 
                 const correoField = document.getElementById('edit-correo');
@@ -106,6 +107,33 @@
                     correoField.value = docente.correo || '';
                 }
                 
+                // ✅ NUEVO: Llenar también los campos editables (azules) con los datos del docente
+                const programaField = document.getElementById('edit-programa');
+                if (programaField) {
+                    programaField.value = docente.dependencia || '';
+                }
+                
+                const escolaridadField = document.getElementById('edit-escolaridad');
+                if (escolaridadField) {
+                    escolaridadField.value = docente.escolaridad || '';
+                }
+                
+                const categoriaField = document.getElementById('edit-categoria-doc');
+                if (categoriaField) {
+                    categoriaField.value = docente.categoria || '';
+                }
+                
+                const dedicacionField = document.getElementById('edit-dedicacion');
+                if (dedicacionField) {
+                    dedicacionField.value = docente.dedicacion || '';
+                }
+                
+                const facultadField = document.getElementById('edit-facultad');
+                if (facultadField) {
+                    facultadField.value = docente.facultad || '';
+                }
+                
+                // Animación visual para campos de solo lectura
                 ['edit-documento', 'edit-correo'].forEach(id => {
                     const elem = document.getElementById(id);
                     if (elem) {
@@ -114,6 +142,17 @@
                         setTimeout(() => {
                             elem.classList.remove('bg-green-100', 'border-green-500');
                             elem.classList.add('bg-yellow-50');
+                        }, 2000);
+                    }
+                });
+                
+                // Animación visual para campos editables
+                ['edit-programa', 'edit-escolaridad', 'edit-categoria-doc', 'edit-dedicacion', 'edit-facultad'].forEach(id => {
+                    const elem = document.getElementById(id);
+                    if (elem && elem.value) {
+                        elem.classList.add('bg-green-100', 'border-green-500');
+                        setTimeout(() => {
+                            elem.classList.remove('bg-green-100', 'border-green-500');
                         }, 2000);
                     }
                 });
@@ -587,15 +626,22 @@
                 // ===== DATOS DE LINA (editables) =====
                 // ✅ USAR DATOS DEL DOCENTE SI JOSÉ LOS PRELLENÓ
                 document.getElementById('edit-documento').value = data.docente_cedula || data.documento_id || '';
+                document.getElementById('edit-programa').value = data.docente_dependencia || data.programa || '';
                 document.getElementById('edit-escolaridad').value = data.docente_escolaridad || data.escolaridad || '';
                 document.getElementById('edit-categoria-doc').value = data.docente_categoria || data.categoria_docente || '';
                 document.getElementById('edit-dedicacion').value = data.docente_dedicacion || data.dedicacion || '';
                 document.getElementById('edit-facultad').value = data.docente_facultad || data.facultad || '';
                 
+                // ✅ NUEVO: Llenar también el correo si está disponible
+                const correoField = document.getElementById('edit-correo');
+                if (correoField) {
+                    correoField.value = data.docente_correo || '';
+                }
+                
                 // Mostrar indicador visual si los datos vienen de José
                 if (data.docente_cedula || data.docente_correo) {
                     console.log('✅ Datos del docente prellenados por José');
-                    ['edit-documento', 'edit-escolaridad', 'edit-categoria-doc', 'edit-dedicacion', 'edit-facultad'].forEach(id => {
+                    ['edit-documento', 'edit-correo', 'edit-programa', 'edit-escolaridad', 'edit-categoria-doc', 'edit-dedicacion', 'edit-facultad'].forEach(id => {
                         const elem = document.getElementById(id);
                         if (elem && elem.value) {
                             elem.classList.add('bg-green-50', 'border-green-400');
@@ -1113,7 +1159,13 @@
                         <!-- DATOS EDITABLES -->
                         <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
                             <p class="text-xs font-bold text-blue-700 mb-2">✏️ INFORMACIÓN ACADÉMICA (editable)</p>
-                            <div class="grid grid-cols-4 gap-3">
+                            <div class="grid grid-cols-5 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">PROGRAMA</label>
+                                    <input type="text" id="edit-programa" 
+                                           class="w-full border-2 border-blue-300 p-2 rounded text-sm"
+                                           placeholder="Ej: Administración de Negocios">
+                                </div>
                                 <div>
                                     <label class="block text-xs font-bold text-gray-600 mb-1">ESCOLARIDAD</label>
                                     <select id="edit-escolaridad" class="w-full border-2 border-blue-300 p-2 rounded text-sm">
