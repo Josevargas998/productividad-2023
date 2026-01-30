@@ -461,7 +461,7 @@
             }
         };
 
-        function iniciarSesion(rol) {
+        window.iniciarSesion = function(rol) {
             rolActual = rol;
             document.getElementById('pantalla-login').classList.add('hidden');
             
@@ -500,7 +500,7 @@
                     }
                 }, 500);
             }
-        }
+        };
 
         // ==================== JOSÉ - SOLO SEGUIMIENTO ====================
         window.cambiarCategoria = () => {
@@ -1553,4 +1553,3 @@
 
 </body>
 </html>
-
