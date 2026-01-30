@@ -25,7 +25,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbw3i_twjNWKsHKzmJaUGs0jFtqLjRg0Npcgh_ebNqus37owLoOYfBH7D7_xvfi_26AfEw/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycby5k8TtzwXC6iKEsOuuA4vllXnkWayqKYG-DpXn82taq3t45fEv7UFUdP2EVYobr6yt7g/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
@@ -140,8 +140,9 @@
             
             if (docente) {
                 console.log('✅ Docente encontrado:', docente.nombre);
+                console.log('📋 Datos completos:', docente);
                 
-                // Mostrar notificación visual
+                // Mostrar notificación visual en el nombre
                 input.classList.remove('border-gray-300');
                 input.classList.add('border-green-500', 'bg-green-50');
                 setTimeout(() => {
@@ -149,27 +150,59 @@
                     input.classList.add('border-gray-300');
                 }, 2000);
                 
-                // ✅ NUEVO: Llenar automáticamente el programa si está vacío
+                // ✅ LLENAR PROGRAMA (usando dependencia o facultad)
                 const programaInput = document.getElementById('programa');
-                if (programaInput && !programaInput.value) {
-                    // Extraer programa del correo si está disponible
-                    if (docente.correo) {
-                        const match = docente.correo.match(/@(.+?)\./);
-                        if (match && match[1]) {
-                            const dominio = match[1].toUpperCase();
-                            programaInput.value = dominio;
-                            programaInput.classList.remove('border-gray-300');
-                            programaInput.classList.add('border-green-500', 'bg-green-50');
-                            setTimeout(() => {
-                                programaInput.classList.remove('border-green-500', 'bg-green-50');
-                                programaInput.classList.add('border-gray-300');
-                            }, 2000);
-                        }
+                if (programaInput) {
+                    // Priorizar dependencia directa, si no hay, usar facultad
+                    const programaValue = docente.dependencia || docente.facultad || '';
+                    if (programaValue) {
+                        programaInput.value = programaValue;
+                        programaInput.classList.remove('border-gray-300');
+                        programaInput.classList.add('border-green-500', 'bg-green-50');
+                        setTimeout(() => {
+                            programaInput.classList.remove('border-green-500', 'bg-green-50');
+                            programaInput.classList.add('border-gray-300');
+                        }, 2000);
                     }
                 }
+                
+                // ✅ GUARDAR DATOS DEL DOCENTE EN EL FORMULARIO (para que Lina los vea después)
+                // Estos datos se enviarán junto con la solicitud
+                if (!window.datosDocenteSeleccionado) {
+                    window.datosDocenteSeleccionado = {};
+                }
+                
+                window.datosDocenteSeleccionado = {
+                    nombre: docente.nombre,
+                    cedula: docente.cedula,
+                    dependencia: docente.dependencia,
+                    facultad: docente.facultad,
+                    escolaridad: docente.escolaridad,
+                    dedicacion: docente.dedicacion,
+                    categoria: docente.categoria,
+                    correo: docente.correo,
+                    contacto: docente.contacto
+                };
+                
+                // Mostrar mensaje de confirmación
+                mostrarNotificacion('✅ Docente validado: ' + docente.nombre);
+                
             } else {
                 console.log('⚠️ Docente no encontrado en la base de datos:', nombreSeleccionado);
+                window.datosDocenteSeleccionado = null;
+                mostrarNotificacion('⚠️ Docente no encontrado en la base de datos', 'warning');
             }
+        }
+        
+        // Función auxiliar para mostrar notificaciones
+        function mostrarNotificacion(mensaje, tipo = 'success') {
+            const div = document.createElement('div');
+            div.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white font-bold z-50 ${
+                tipo === 'success' ? 'bg-green-600' : 'bg-yellow-600'
+            }`;
+            div.textContent = mensaje;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
         }
 
         const CONTRASEÑAS = {
@@ -383,6 +416,19 @@
                     estado_ciarp: estadoCiarp,
                     observaciones_jose: observaciones
                 };
+                
+                // ✅ INCLUIR DATOS DEL DOCENTE SI FUERON SELECCIONADOS
+                if (window.datosDocenteSeleccionado) {
+                    data.docente_cedula = window.datosDocenteSeleccionado.cedula || '';
+                    data.docente_dependencia = window.datosDocenteSeleccionado.dependencia || '';
+                    data.docente_facultad = window.datosDocenteSeleccionado.facultad || '';
+                    data.docente_escolaridad = window.datosDocenteSeleccionado.escolaridad || '';
+                    data.docente_dedicacion = window.datosDocenteSeleccionado.dedicacion || '';
+                    data.docente_categoria = window.datosDocenteSeleccionado.categoria || '';
+                    data.docente_correo = window.datosDocenteSeleccionado.correo || '';
+                    data.docente_contacto = window.datosDocenteSeleccionado.contacto || '';
+                    console.log('✅ Datos del docente incluidos en la solicitud');
+                }
 
                 // Campos específicos según categoría
                 if (categoria.includes("Artículos")) {
@@ -530,11 +576,23 @@
                 document.getElementById('campos-jose-readonly').innerHTML = camposJoseHtml;
 
                 // ===== DATOS DE LINA (editables) =====
-                document.getElementById('edit-documento').value = data.documento_id || '';
-                document.getElementById('edit-escolaridad').value = data.escolaridad || '';
-                document.getElementById('edit-categoria-doc').value = data.categoria_docente || '';
-                document.getElementById('edit-dedicacion').value = data.dedicacion || '';
-                document.getElementById('edit-facultad').value = data.facultad || '';
+                // ✅ USAR DATOS DEL DOCENTE SI JOSÉ LOS PRELLENÓ
+                document.getElementById('edit-documento').value = data.docente_cedula || data.documento_id || '';
+                document.getElementById('edit-escolaridad').value = data.docente_escolaridad || data.escolaridad || '';
+                document.getElementById('edit-categoria-doc').value = data.docente_categoria || data.categoria_docente || '';
+                document.getElementById('edit-dedicacion').value = data.docente_dedicacion || data.dedicacion || '';
+                document.getElementById('edit-facultad').value = data.docente_facultad || data.facultad || '';
+                
+                // Mostrar indicador visual si los datos vienen de José
+                if (data.docente_cedula || data.docente_correo) {
+                    console.log('✅ Datos del docente prellenados por José');
+                    ['edit-documento', 'edit-escolaridad', 'edit-categoria-doc', 'edit-dedicacion', 'edit-facultad'].forEach(id => {
+                        const elem = document.getElementById(id);
+                        if (elem && elem.value) {
+                            elem.classList.add('bg-green-50', 'border-green-400');
+                        }
+                    });
+                }
                 
                 // ✅ ESTADO EDITABLE POR LINA
                 document.getElementById('edit-estado-ciarp').value = data.estado_ciarp || 'Pendiente';
@@ -628,6 +686,16 @@
                     });
                 }
             });
+            
+            // ✅ NUEVO: Autocompletar al cambiar el nombre del docente (José)
+            const autorInput = document.getElementById('autor');
+            if (autorInput) {
+                autorInput.addEventListener('change', autocompletarDocenteJose);
+                autorInput.addEventListener('blur', autocompletarDocenteJose);
+            }
+            
+            // ✅ CARGAR BASE DE DOCENTES AL INICIAR
+            cargarBaseDocentes();
         });
 
         async function guardarPuntajeAutomatico() {
@@ -1154,4 +1222,3 @@
 
 </body>
 </html>
-
