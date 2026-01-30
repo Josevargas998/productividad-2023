@@ -221,7 +221,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbyBdwK6cmmFDOrLNt24vSpTsqmupe-gUBRbMlFcqWMbpHye3vvorV4dmU1Rartdv5XJZA/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbw3i_twjNWKsHKzmJaUGs0jFtqLjRg0Npcgh_ebNqus37owLoOYfBH7D7_xvfi_26AfEw/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
@@ -607,6 +607,22 @@
                 tituloProducto = document.getElementById('titulo_libro')?.value || '';
             } else if (categoria.includes("Capítulo") || categoria.includes("Capitulo")) {
                 tituloProducto = document.getElementById('titulo_capitulo')?.value || '';
+            } else if (categoria === "Premio") {
+                tituloProducto = document.getElementById('titulo_trabajo_premiado')?.value || '';
+            } else if (categoria === "Software") {
+                tituloProducto = document.getElementById('titulo_software')?.value || '';
+            } else if (categoria === "Patente") {
+                tituloProducto = document.getElementById('titulo_patente')?.value || '';
+            } else if (categoria === "Obra Artística" || categoria === "Producción Audiovisual") {
+                tituloProducto = document.getElementById('titulo_obra')?.value || '';
+            } else if (categoria === "Ponencias") {
+                tituloProducto = document.getElementById('titulo_ponencia')?.value || '';
+            } else if (categoria === "Tesis") {
+                tituloProducto = document.getElementById('titulo_tesis')?.value || '';
+            } else if (categoria === "Títulos") {
+                tituloProducto = document.getElementById('titulo_obtenido')?.value || '';
+            } else if (categoria === "Ascensos") {
+                tituloProducto = document.getElementById('tipo_trabajo')?.value || '';
             }
 
             if (!tituloProducto) {
@@ -620,7 +636,7 @@
             btnEnviar.innerText = "⏳ ENVIANDO...";
 
             try {
-                const datosFirebase = {
+                const data = {
                     categoria: categoria,
                     anio: anio,
                     semestre: semestre,
@@ -635,34 +651,6 @@
                     tipo_registro: "JOSE"
                 };
 
-                const docRef = await addDoc(collection(db, "solicitudes"), datosFirebase);
-                console.log("✅ Creado en Firebase:", docRef.id);
-
-                const response = await fetch(urlAppsScript, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({...datosFirebase, tipo_registro: "JOSE"})
-                });
-
-                const result = await response.json();
-                
-                if (result.status === 'success' && result.fila) {
-                    await guardarFilaEnFirebase(docRef.id, result.fila, categoria);
-                    alert("✅ Registro creado correctamente");
-                    document.getElementById('form-jose').reset();
-                    cargarTablaJose();
-                }
-
-            } catch (error) {
-                console.error("❌ Error:", error);
-                alert("❌ Error: " + error.message);
-            } finally {
-                btnEnviar.disabled = false;
-                btnEnviar.innerText = textoOriginal;
-            }
-        
-                };
-                
                 // ✅ INCLUIR DATOS DEL DOCENTE SI FUERON SELECCIONADOS
                 if (window.datosDocenteSeleccionado) {
                     data.docente_cedula = window.datosDocenteSeleccionado.cedula || '';
@@ -673,14 +661,14 @@
                     data.docente_categoria = window.datosDocenteSeleccionado.categoria || '';
                     data.docente_correo = window.datosDocenteSeleccionado.correo || '';
                     data.docente_contacto = window.datosDocenteSeleccionado.contacto || '';
-                    data.docente_cargo = window.datosDocenteSeleccionado.cargo || '';                      // ✅ NUEVO
-                    data.docente_deptoExpedicion = window.datosDocenteSeleccionado.deptoExpedicion || '';  // ✅ NUEVO
-                    data.docente_municipioExpedicion = window.datosDocenteSeleccionado.municipioExpedicion || ''; // ✅ NUEVO
+                    data.docente_cargo = window.datosDocenteSeleccionado.cargo || '';
+                    data.docente_deptoExpedicion = window.datosDocenteSeleccionado.deptoExpedicion || '';
+                    data.docente_municipioExpedicion = window.datosDocenteSeleccionado.municipioExpedicion || '';
                     console.log('✅ Datos del docente incluidos en la solicitud');
                 }
 
                 // Campos específicos según categoría
-                if (categoria.includes("Artículos")) {
+                if (categoria.includes("Artículos") || categoria.includes("Articulos")) {
                     data.nombre_articulo = document.getElementById('nombre_articulo')?.value || '';
                     data.titulo_revista = document.getElementById('titulo_revista')?.value || '';
                 } else if (categoria.includes("Libro")) {
@@ -719,20 +707,26 @@
                 // Enviar a Google Sheets
                 const response = await fetch(urlAppsScript, {
                     method: 'POST',
-                    mode: 'no-cors',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
 
+                const result = await response.json();
+                
+                if (result.status === 'success' && result.fila) {
+                    await guardarFilaEnFirebase(docRef.id, result.fila, categoria);
+                }
+
                 alert("✅ Solicitud enviada correctamente");
                 limpiarFormularioJose();
+                cargarTablaJose();
                 
             } catch (error) {
                 console.error("❌ Error:", error);
                 alert("❌ Error al enviar: " + error.message);
             } finally {
                 btnEnviar.disabled = false;
-                btnEnviar.innerText = "✅ ENVIAR SOLICITUD";
+                btnEnviar.innerText = textoOriginal;
             }
         };
 
