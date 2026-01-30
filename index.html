@@ -1,1023 +1,520 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Productividad Académica UQ</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            green: '#003d2b',
-                            blue: '#1e3a8a',
-                            yellow: '#f59e0b',
-                            purple: '#9333ea'
-                        }
-                    }
-                }
-            }
+<!-- ==================== FRONTEND MEJORADO CON SINCRONIZACIÓN BIDIRECCIONAL ==================== -->
+
+<script type="module">
+    // ... imports existentes de Firebase ...
+    
+    let registrosJose = [];
+    let intervalActualizacion = null;
+    let intervalSincronizacionLina = null;
+    
+    // ==================== SINCRONIZACIÓN BIDIRECCIONAL MEJORADA ====================
+    
+    // 1. GUARDAR NÚMERO DE FILA EN FIREBASE al crear registro
+    async function guardarFilaEnFirebase(firebaseId, fila, categoria) {
+        try {
+            const docRef = doc(db, "solicitudes", firebaseId);
+            await updateDoc(docRef, {
+                _fila: fila,
+                _categoria: categoria,
+                _ultimaActualizacion: new Date().toISOString()
+            });
+            console.log("✅ Fila guardada en Firebase:", fila);
+        } catch (error) {
+            console.error("❌ Error al guardar fila:", error);
         }
-    </script>
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <!-- Pantalla de Login -->
-    <div id="pantalla-login" class="min-h-screen flex flex-col items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
-            <div class="text-center mb-8">
-                <h1 class="text-3xl font-bold text-primary-green">🏛️ UQ - Productividad</h1>
-                <p class="text-gray-600 mt-2">Sistema de Gestión Académica</p>
-            </div>
+    }
+    
+    // 2. CARGAR REGISTROS DESDE GOOGLE SHEETS
+    async function cargarRegistrosDesdeSheets(categoria) {
+        try {
+            const response = await fetch(
+                `${urlAppsScript}?action=obtenerRegistros&categoria=${encodeURIComponent(categoria)}`
+            );
+            const data = await response.json();
             
-            <div class="space-y-4">
-                <button onclick="iniciarSesion('JOSE')" 
-                        class="w-full bg-primary-green hover:bg-green-800 text-white py-3 px-4 rounded-lg font-bold text-lg transition-colors flex items-center justify-center gap-3">
-                    <span>👨‍💼</span> INICIAR COMO JOSÉ
-                </button>
-                
-                <button onclick="iniciarSesion('LINA')" 
-                        class="w-full bg-primary-blue hover:bg-blue-800 text-white py-3 px-4 rounded-lg font-bold text-lg transition-colors flex items-center justify-center gap-3">
-                    <span>👩‍⚖️</span> INICIAR COMO LINA
-                </button>
-            </div>
+            if (data && Array.isArray(data)) {
+                console.log(`✅ Registros cargados desde Sheets (${categoria}):`, data.length);
+                return data;
+            }
+            return [];
+        } catch (error) {
+            console.error("❌ Error al cargar desde Sheets:", error);
+            return [];
+        }
+    }
+    
+    // ==================== TABLA DE REGISTROS PARA JOSÉ ====================
+    
+    window.cargarTablaJose = async () => {
+        const categoria = document.getElementById('categoria').value;
+        if (!categoria) {
+            document.getElementById('tabla-registros-jose').innerHTML = 
+                '<tr><td colspan="7" class="text-center py-4 text-gray-500">Seleccione una categoría primero</td></tr>';
+            return;
+        }
+        
+        try {
+            // Cargar desde Firebase
+            const q = query(
+                collection(db, "solicitudes"),
+                where("categoria", "==", categoria),
+                orderBy("timestamp", "desc")
+            );
+            const querySnapshot = await getDocs(q);
             
-            <div class="mt-6 text-center text-sm text-gray-500">
-                Versión 2.0 - Sincronización Bidireccional
-            </div>
-        </div>
-    </div>
-
-    <!-- Panel de José -->
-    <div id="panel-jose" class="hidden min-h-screen p-4 md:p-8">
-        <!-- Header -->
-        <div class="bg-primary-green text-white rounded-xl p-6 mb-6">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h1 class="text-2xl font-bold">👨‍💼 PANEL DE JOSÉ</h1>
-                    <p class="text-green-100">Registro y gestión de solicitudes</p>
-                </div>
-                <button onclick="location.reload()" 
-                        class="bg-white text-primary-green px-4 py-2 rounded-lg font-bold hover:bg-gray-100">
-                    🔄 SALIR
-                </button>
-            </div>
-        </div>
-
-        <!-- Contenedor principal -->
-        <div class="grid md:grid-cols-1 gap-8">
-            <!-- Formulario -->
-            <div class="bg-white rounded-xl shadow-lg p-6">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">📝 NUEVA SOLICITUD</h2>
-                
-                <form id="form-jose" class="space-y-4">
-                    <!-- Categoría -->
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">CATEGORÍA *</label>
-                        <select id="categoria" class="w-full border border-gray-300 rounded-lg p-3 text-sm" required>
-                            <option value="">Seleccione una categoría</option>
-                            <option value="Artículos Indexados">Artículos Indexados</option>
-                            <option value="Artículos No Indexados">Artículos No Indexados</option>
-                            <option value="Libros">Libros</option>
-                            <option value="Capítulos">Capítulos</option>
-                            <option value="Eventos">Eventos</option>
-                            <option value="Proyectos">Proyectos</option>
-                            <option value="Obras">Obras</option>
-                            <option value="Premios">Premios</option>
-                            <option value="Software">Software</option>
-                        </select>
-                    </div>
-
-                    <!-- Campos básicos -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">AÑO *</label>
-                            <input type="number" id="anio" class="w-full border border-gray-300 rounded-lg p-3 text-sm" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">SEMESTRE *</label>
-                            <select id="semestre" class="w-full border border-gray-300 rounded-lg p-3 text-sm" required>
-                                <option value="">Seleccione</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">FECHA RECIBIDO *</label>
-                            <input type="date" id="fecha-recibido" class="w-full border border-gray-300 rounded-lg p-3 text-sm" required>
-                        </div>
-                    </div>
-
-                    <!-- Autor y Programa -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">AUTOR/DOCENTE *</label>
-                            <input type="text" id="autor" class="w-full border border-gray-300 rounded-lg p-3 text-sm" required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">PROGRAMA</label>
-                            <input type="text" id="programa" class="w-full border border-gray-300 rounded-lg p-3 text-sm">
-                        </div>
-                    </div>
-
-                    <!-- Título específico -->
-                    <div id="campos-especificos">
-                        <!-- Se llena dinámicamente según la categoría -->
-                    </div>
-
-                    <!-- Estado y Observaciones -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">ESTADO CIARP *</label>
-                            <select id="estado-ciarp" class="w-full border border-gray-300 rounded-lg p-3 text-sm" required>
-                                <option value="Aprobado">Aprobado</option>
-                                <option value="No Aprobado">No Aprobado</option>
-                                <option value="Pendiente">Pendiente</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">DOCUMENTO COMPLETA</label>
-                            <select id="doc-completa" class="w-full border border-gray-300 rounded-lg p-3 text-sm">
-                                <option value="Sí">Sí</option>
-                                <option value="No">No</option>
-                                <option value="Parcial">Parcial</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- Observaciones -->
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">OBSERVACIONES (JOSÉ)</label>
-                        <textarea id="observaciones-jose" class="w-full border border-gray-300 rounded-lg p-3 text-sm" rows="3"></textarea>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Tabla de Registros (NUEVA) -->
-            <div class="mt-8 bg-white rounded-xl shadow-lg p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-                        <span class="bg-primary-green text-white p-2 rounded">📊</span>
-                        REGISTROS INGRESADOS
-                    </h3>
-                    <button onclick="cargarTablaJose()" 
-                            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-colors">
-                        🔄 ACTUALIZAR
-                    </button>
-                </div>
-                
-                <div class="overflow-x-auto">
-                    <table class="w-full border-collapse border border-gray-300">
-                        <thead>
-                            <tr class="bg-primary-green text-white">
-                                <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">AÑO</th>
-                                <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">SEM</th>
-                                <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">TÍTULO</th>
-                                <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">AUTOR</th>
-                                <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">FECHA</th>
-                                <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">ESTADO</th>
-                                <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">ACCIONES</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabla-registros-jose">
-                            <tr>
-                                <td colspan="7" class="text-center py-4 text-gray-500">
-                                    Seleccione una categoría para ver los registros
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div class="mt-4 text-sm text-gray-600 bg-blue-50 p-3 rounded">
-                    <strong>ℹ️ Información:</strong>
-                    <ul class="list-disc list-inside mt-2 space-y-1">
-                        <li>La tabla muestra todos los registros de la categoría seleccionada</li>
-                        <li>Los registros se ordenan por fecha (más recientes primero)</li>
-                        <li>Click en "🔄 ACTUALIZAR" para refrescar los datos</li>
-                        <li>Click en "🗑️ Eliminar" para borrar un registro (requiere confirmación)</li>
-                        <li><strong>Importante:</strong> Al eliminar, se borrará tanto de la app como de Google Sheets</li>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- Botón de envío -->
-            <div class="text-center">
-                <button id="btn-enviar-jose" onclick="enviarSolicitud()" 
-                        class="bg-primary-green hover:bg-green-800 text-white py-4 px-8 rounded-xl font-bold text-lg transition-colors inline-flex items-center gap-3">
-                    <span>📤</span> ENVIAR SOLICITUD
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Panel de Lina -->
-    <div id="panel-lina" class="hidden min-h-screen p-4 md:p-8">
-        <!-- Header -->
-        <div class="bg-primary-blue text-white rounded-xl p-6 mb-6">
-            <div class="flex justify-between items-center">
-                <div>
-                    <h1 class="text-2xl font-bold">👩‍⚖️ PANEL DE LINA</h1>
-                    <p class="text-blue-100">Evaluación y asignación de puntajes</p>
-                </div>
-                <button onclick="location.reload()" 
-                        class="bg-white text-primary-blue px-4 py-2 rounded-lg font-bold hover:bg-gray-100">
-                    🔄 SALIR
-                </button>
-            </div>
-        </div>
-
-        <!-- Tabla de Pendientes -->
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">📋 SOLICITUDES PENDIENTES</h2>
-            <div class="overflow-x-auto">
-                <table class="w-full border-collapse border border-gray-300">
-                    <thead>
-                        <tr class="bg-primary-blue text-white">
-                            <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">CATEGORÍA</th>
-                            <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">TÍTULO</th>
-                            <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">AUTOR</th>
-                            <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">FECHA</th>
-                            <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">ESTADO</th>
-                            <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">ACCIÓN</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabla-pendientes-lina">
-                        <tr>
-                            <td colspan="6" class="text-center py-4 text-gray-500">
-                                Cargando registros pendientes...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Tabla de Evaluados -->
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">✅ SOLICITUDES EVALUADAS</h2>
-            <div class="overflow-x-auto">
-                <table class="w-full border-collapse border border-gray-300">
-                    <thead>
-                        <tr class="bg-green-600 text-white">
-                            <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">CATEGORÍA</th>
-                            <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">TÍTULO</th>
-                            <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">AUTOR</th>
-                            <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">PUNTAJE</th>
-                            <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">ESTADO FINAL</th>
-                            <th class="border border-gray-400 px-3 py-2 text-xs font-bold uppercase">ACCIÓN</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabla-evaluados-lina">
-                        <tr>
-                            <td colspan="6" class="text-center py-4 text-gray-500">
-                                Cargando registros evaluados...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Evaluación (Lina) -->
-    <div id="modal-lina" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <!-- Header del modal -->
-            <div class="sticky top-0 bg-primary-blue text-white p-6 rounded-t-xl">
-                <div class="flex justify-between items-center">
-                    <h3 class="text-xl font-bold">📋 EVALUAR SOLICITUD</h3>
-                    <button onclick="cerrarModal()" class="text-white hover:text-gray-200 text-2xl">
-                        ✕
-                    </button>
-                </div>
-            </div>
-
-            <!-- Contenido del modal -->
-            <div class="p-6">
-                <!-- Sección de datos de José (solo lectura) -->
-                <div class="mb-8">
-                    <h4 class="text-lg font-bold text-primary-green mb-4">📄 DATOS DE JOSÉ (SOLO LECTURA)</h4>
-                    <div class="bg-green-50 p-4 rounded-lg">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1">CATEGORÍA</label>
-                                <p id="modal-categoria" class="text-gray-800"></p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1">TÍTULO</label>
-                                <p id="modal-titulo" class="text-gray-800 font-semibold"></p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1">AUTOR</label>
-                                <p id="modal-autor" class="text-gray-800"></p>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 mb-1">FECHA RECIBIDO</label>
-                                <p id="modal-fecha" class="text-gray-800"></p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Formulario de evaluación de Lina -->
-                <div>
-                    <h4 class="text-lg font-bold text-primary-blue mb-4">📝 EVALUACIÓN DE LINA</h4>
-                    
-                    <!-- Datos del docente -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">DOCUMENTO ID</label>
-                            <input type="text" id="edit-doc-id" class="w-full border border-gray-300 rounded-lg p-3 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">ESCOLARIDAD</label>
-                            <select id="edit-escolaridad" class="w-full border border-gray-300 rounded-lg p-3 text-sm">
-                                <option value="">Seleccionar</option>
-                                <option value="Doctorado">Doctorado</option>
-                                <option value="Maestría">Maestría</option>
-                                <option value="Especialización">Especialización</option>
-                                <option value="Pregrado">Pregrado</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">CATEGORÍA DOCENTE</label>
-                            <input type="text" id="edit-categoria" class="w-full border border-gray-300 rounded-lg p-3 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">DEDICACIÓN</label>
-                            <select id="edit-dedicacion" class="w-full border border-gray-300 rounded-lg p-3 text-sm">
-                                <option value="">Seleccionar</option>
-                                <option value="TC">TC</option>
-                                <option value="MT">MT</option>
-                                <option value="TCH">TCH</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">FACULTAD</label>
-                            <input type="text" id="edit-facultad" class="w-full border border-gray-300 rounded-lg p-3 text-sm">
-                        </div>
-                    </div>
-
-                    <!-- Puntajes -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">EVALUACIÓN 1</label>
-                            <input type="number" step="0.1" id="edit-eval1" class="w-full border border-gray-300 rounded-lg p-3 text-sm bg-yellow-50">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">EVALUACIÓN 2</label>
-                            <input type="number" step="0.1" id="edit-eval2" class="w-full border border-gray-300 rounded-lg p-3 text-sm bg-yellow-50">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">PUNTAJE FINAL</label>
-                            <input type="number" step="0.1" id="edit-puntaje-final" class="w-full border border-gray-300 rounded-lg p-3 text-sm bg-yellow-100 font-bold">
-                        </div>
-                    </div>
-
-                    <!-- Estado final y documentos -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">ESTADO FINAL</label>
-                            <select id="edit-estado" class="w-full border border-gray-300 rounded-lg p-3 text-sm bg-purple-50">
-                                <option value="">Seleccionar</option>
-                                <option value="Aprobado">Aprobado</option>
-                                <option value="No Aprobado">No Aprobado</option>
-                                <option value="Pendiente">Pendiente</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">ACTA CIARP</label>
-                            <input type="text" id="edit-acta" class="w-full border border-gray-300 rounded-lg p-3 text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-2">RESOLUCIÓN</label>
-                            <input type="text" id="edit-resolucion" class="w-full border border-gray-300 rounded-lg p-3 text-sm">
-                        </div>
-                    </div>
-
-                    <!-- Observaciones -->
-                    <div class="mb-6">
-                        <label class="block text-sm font-bold text-gray-700 mb-2">OBSERVACIONES (LINA)</label>
-                        <textarea id="edit-obs-lina" class="w-full border border-gray-300 rounded-lg p-3 text-sm" rows="3"></textarea>
-                    </div>
-
-                    <!-- Botones -->
-                    <div class="flex justify-end gap-4">
-                        <button onclick="cerrarModal()" 
-                                class="bg-gray-500 hover:bg-gray-600 text-white py-3 px-6 rounded-lg font-bold">
-                            CANCELAR
-                        </button>
-                        <button id="btn-guardar-lina" onclick="guardarEvaluacion()" 
-                                class="bg-primary-blue hover:bg-blue-800 text-white py-3 px-6 rounded-lg font-bold inline-flex items-center gap-2">
-                            <span>💾</span> GUARDAR COMPILADO COMPLETO
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script type="module">
-        // ==================== CONFIGURACIÓN ====================
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbxpow_ywb0DeejHc2yGq_ngHo5r4hl_PWWVLhEpLgMim_KNp8j4Rxyhl_9Ey4hdnxzKEA/exec"; // ⬅️ REEMPLAZAR CON TU URL
-
-        // Firebase config - REEMPLAZAR CON TUS CREDENCIALES
-        const firebaseConfig = {
-            apiKey: "TU_API_KEY",
-            authDomain: "TU_PROJECT.firebaseapp.com",
-            projectId: "TU_PROJECT_ID",
-            storageBucket: "TU_PROJECT.appspot.com",
-            messagingSenderId: "TU_MESSAGING_SENDER_ID",
-            appId: "TU_APP_ID"
-        };
-
-        // ==================== IMPORTS FIREBASE ====================
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { 
-            getFirestore, 
-            collection, 
-            addDoc, 
-            getDocs, 
-            getDoc,
-            doc, 
-            updateDoc, 
-            query, 
-            where, 
-            orderBy, 
-            limit,
-            deleteDoc
-        } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-
-        // ==================== INICIALIZACIÓN ====================
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        // ==================== VARIABLES GLOBALES ====================
-        let registrosJose = [];
-        let intervalActualizacion = null;
-        let rolActual = '';
-        let docenteSeleccionado = null;
-        let idRegistroActual = '';
-
-        console.log("🔥 Firebase inicializado");
-
-        // ==================== FUNCIONES AUXILIARES ====================
-        function ocultarCamposEspecificos() {
-            document.getElementById('campos-especificos').innerHTML = '';
-        }
-
-        function cerrarModal() {
-            document.getElementById('modal-lina').classList.add('hidden');
-            idRegistroActual = '';
-        }
-
-        async function cargarPendientesLina() {
-            try {
-                const q = query(
-                    collection(db, "solicitudes"),
-                    where("estado_ciarp", "in", ["Pendiente", "Aprobado", "No Aprobado"]),
-                    orderBy("timestamp", "desc")
-                );
-                const querySnapshot = await getDocs(q);
-                
-                const tbodyPendientes = document.getElementById('tabla-pendientes-lina');
-                const tbodyEvaluados = document.getElementById('tabla-evaluados-lina');
-                tbodyPendientes.innerHTML = '';
-                tbodyEvaluados.innerHTML = '';
-                
-                if (querySnapshot.empty) {
-                    tbodyPendientes.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">No hay registros pendientes</td></tr>';
-                    tbodyEvaluados.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-gray-500">No hay registros evaluados</td></tr>';
-                    return;
-                }
-                
-                querySnapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    const esPendiente = data.estado_ciarp === 'Pendiente' || !data.timestamp_lina;
-                    const estadoColor = data.estado_ciarp === 'Aprobado' ? 'bg-green-100 text-green-800' : 
-                                     data.estado_ciarp === 'No Aprobado' ? 'bg-red-100 text-red-800' : 
-                                     'bg-yellow-100 text-yellow-800';
-                    
-                    const row = `
-                        <tr class="hover:bg-gray-50">
-                            <td class="border px-2 py-2 text-xs">${data.categoria || ''}</td>
-                            <td class="border px-2 py-2 text-xs font-semibold">${data.titulo_producto || ''}</td>
-                            <td class="border px-2 py-2 text-xs">${data.autor || ''}</td>
-                            <td class="border px-2 py-2 text-xs">${data.fecha_recibido || ''}</td>
-                            <td class="border px-2 py-2 text-center">
-                                <span class="px-2 py-1 rounded text-xs font-bold ${estadoColor}">
-                                    ${data.estado_ciarp || 'Pendiente'}
-                                </span>
-                            </td>
-                            <td class="border px-2 py-2 text-center">
-                                <button onclick="abrirModalEvaluacion('${docSnap.id}')" 
-                                        class="${esPendiente ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'} text-white px-3 py-1 rounded text-xs font-bold">
-                                    ${esPendiente ? '📝 Evaluar' : '✏️ Editar'}
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                    
-                    if (esPendiente) {
-                        tbodyPendientes.innerHTML += row;
-                    } else {
-                        tbodyEvaluados.innerHTML += row;
-                    }
-                });
-                
-            } catch (error) {
-                console.error("❌ Error al cargar pendientes:", error);
-            }
-        }
-
-        // ==================== NUEVA: GUARDAR NÚMERO DE FILA EN FIREBASE ====================
-        async function guardarFilaEnFirebase(firebaseId, fila, categoria) {
-            try {
-                const docRef = doc(db, "solicitudes", firebaseId);
-                await updateDoc(docRef, {
-                    _fila: fila,
-                    _categoria: categoria
-                });
-                console.log("✅ Número de fila guardado en Firebase:", fila);
-            } catch (error) {
-                console.error("❌ Error al guardar fila:", error);
-            }
-        }
-
-        // ==================== NUEVA: CARGAR REGISTROS DESDE GOOGLE SHEETS ====================
-        async function cargarRegistrosDesdeSheets(categoria) {
-            try {
-                const response = await fetch(
-                    `${urlAppsScript}?action=obtenerRegistros&categoria=${encodeURIComponent(categoria)}`
-                );
-                const data = await response.json();
-                
-                if (data && Array.isArray(data)) {
-                    console.log(`✅ Registros cargados desde Sheets (${categoria}):`, data.length);
-                    return data;
-                }
-                return [];
-            } catch (error) {
-                console.error("❌ Error al cargar desde Sheets:", error);
-                return [];
-            }
-        }
-
-        // ==================== NUEVA: CARGAR Y MOSTRAR TABLA DE REGISTROS (JOSÉ) ====================
-        window.cargarTablaJose = async () => {
-            const categoria = document.getElementById('categoria').value;
-            if (!categoria) {
-                document.getElementById('tabla-registros-jose').innerHTML = 
-                    '<tr><td colspan="7" class="text-center py-4 text-gray-500">Seleccione una categoría primero</td></tr>';
+            const tbody = document.getElementById('tabla-registros-jose');
+            tbody.innerHTML = '';
+            
+            if (querySnapshot.empty) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">No hay registros en esta categoría</td></tr>';
                 return;
             }
             
-            try {
-                const q = query(
-                    collection(db, "solicitudes"),
-                    where("categoria", "==", categoria),
-                    orderBy("timestamp", "desc")
-                );
-                const querySnapshot = await getDocs(q);
-                
-                const tbody = document.getElementById('tabla-registros-jose');
-                tbody.innerHTML = '';
-                
-                if (querySnapshot.empty) {
-                    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">No hay registros en esta categoría</td></tr>';
-                    return;
-                }
-                
-                querySnapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    const estadoColor = data.estado_ciarp === 'Aprobado' ? 'bg-green-100 text-green-800' : 
-                                     data.estado_ciarp === 'No Aprobado' ? 'bg-red-100 text-red-800' : 
-                                     'bg-yellow-100 text-yellow-800';
-                    
-                    const row = `
-                        <tr class="hover:bg-gray-50">
-                            <td class="border px-2 py-2 text-xs">${data.anio || ''}</td>
-                            <td class="border px-2 py-2 text-xs">${data.semestre || ''}</td>
-                            <td class="border px-2 py-2 text-xs font-semibold">${data.titulo_producto || ''}</td>
-                            <td class="border px-2 py-2 text-xs">${data.autor || ''}</td>
-                            <td class="border px-2 py-2 text-xs">${data.fecha_recibido || ''}</td>
-                            <td class="border px-2 py-2 text-center">
-                                <span class="px-2 py-1 rounded text-xs font-bold ${estadoColor}">
-                                    ${data.estado_ciarp || 'Pendiente'}
-                                </span>
-                            </td>
-                            <td class="border px-2 py-2 text-center">
-                                <button onclick="eliminarRegistroJose('${docSnap.id}', '${data._categoria}', ${data._fila})" 
-                                        class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-bold">
-                                    🗑️ Eliminar
-                                </button>
-                            </td>
-                        </tr>
-                    `;
-                    tbody.innerHTML += row;
-                });
-                
-            } catch (error) {
-                console.error("❌ Error al cargar tabla:", error);
-                document.getElementById('tabla-registros-jose').innerHTML = 
-                    '<tr><td colspan="7" class="text-center py-4 text-red-500">Error al cargar registros</td></tr>';
-            }
-        };
-
-        // ==================== NUEVA: ELIMINAR REGISTRO (JOSÉ) ====================
-        window.eliminarRegistroJose = async (firebaseId, categoria, fila) => {
-            if (!confirm('¿Está seguro de eliminar este registro? Esta acción no se puede deshacer.')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(
-                    `${urlAppsScript}?action=eliminarRegistro&categoria=${encodeURIComponent(categoria)}&fila=${fila}`,
-                    { method: 'GET' }
-                );
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    const docRef = doc(db, "solicitudes", firebaseId);
-                    await deleteDoc(docRef);
-                    
-                    alert(`✅ Registro eliminado: ${result.titulo}`);
-                    cargarTablaJose();
-                } else {
-                    throw new Error(result.message || 'Error al eliminar de Sheets');
-                }
-                
-            } catch (error) {
-                console.error("❌ Error al eliminar:", error);
-                alert("❌ Error al eliminar: " + error.message);
-            }
-        };
-
-        // ==================== MEJORADA: FUNCIÓN ENVIAR SOLICITUD (JOSÉ) ====================
-        window.enviarSolicitud = async () => {
-            const categoria = document.getElementById('categoria').value;
-            const anio = document.getElementById('anio').value;
-            const semestre = document.getElementById('semestre').value;
-            const fechaRecibido = document.getElementById('fecha-recibido').value;
-            const autor = document.getElementById('autor').value;
-            const programa = document.getElementById('programa').value;
-            const docCompleta = document.getElementById('doc-completa').value;
-            const estadoCiarp = document.getElementById('estado-ciarp').value;
-            const observaciones = document.getElementById('observaciones-jose').value;
-
-            if (!categoria || !anio || !semestre || !fechaRecibido || !autor) {
-                alert("⚠️ Complete los campos obligatorios");
-                return;
-            }
-
-            let tituloProducto = '';
-            if (categoria.includes("Artículos")) {
-                tituloProducto = document.getElementById('nombre_articulo')?.value || '';
-            } else if (categoria.includes("Libro")) {
-                tituloProducto = document.getElementById('titulo_libro')?.value || '';
-            } else if (categoria.includes("Capítulo")) {
-                tituloProducto = document.getElementById('titulo_capitulo')?.value || '';
-            } else if (categoria === "Eventos") {
-                tituloProducto = document.getElementById('titulo_evento')?.value || '';
-            } else if (categoria === "Proyectos") {
-                tituloProducto = document.getElementById('titulo_proyecto')?.value || '';
-            } else if (categoria === "Obras") {
-                tituloProducto = document.getElementById('titulo_obra')?.value || '';
-            } else if (categoria === "Premios") {
-                tituloProducto = document.getElementById('titulo_premio')?.value || '';
-            } else if (categoria === "Software") {
-                tituloProducto = document.getElementById('titulo_software')?.value || '';
-            }
-
-            if (!tituloProducto) {
-                alert("⚠️ Complete el título del producto");
-                return;
-            }
-
-            const btnEnviar = document.getElementById('btn-enviar-jose');
-            btnEnviar.disabled = true;
-            btnEnviar.innerText = "⏳ ENVIANDO...";
-
-            try {
-                const data = {
-                    categoria: categoria,
-                    tipo_registro: "JOSE",
-                    timestamp: new Date().toISOString(),
-                    anio: anio,
-                    semestre: semestre,
-                    fecha_recibido: fechaRecibido,
-                    titulo_producto: tituloProducto,
-                    autor: autor,
-                    programa: programa,
-                    doc_completa: docCompleta,
-                    estado_ciarp: estadoCiarp,
-                    observaciones_jose: observaciones
-                };
-
-                if (docenteSeleccionado) {
-                    data.docente_cedula = docenteSeleccionado.cedula;
-                    data.docente_correo = docenteSeleccionado.correo;
-                    data.docente_escolaridad = docenteSeleccionado.escolaridad;
-                    data.docente_categoria = docenteSeleccionado.categoria;
-                    data.docente_dedicacion = docenteSeleccionado.dedicacion;
-                    data.docente_facultad = docenteSeleccionado.facultad;
-                }
-
-                if (categoria.includes("Artículos")) {
-                    data.tipo = document.getElementById('tipo_articulo')?.value || '';
-                    data.doi = document.getElementById('doi')?.value || '';
-                } else if (categoria.includes("Libro")) {
-                    data.tipo = document.getElementById('tipo_libro')?.value || '';
-                    data.isbn = document.getElementById('isbn')?.value || '';
-                    data.num_paginas = document.getElementById('num_paginas')?.value || '';
-                    data.editorial = document.getElementById('editorial_libro')?.value || '';
-                }
-
-                const docRef = await addDoc(collection(db, "solicitudes"), data);
-                console.log("✅ Firebase ID:", docRef.id);
-
-                console.log("📤 Enviando a Google Sheets");
-                const response = await fetch(urlAppsScript, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-
-                const responseText = await response.text();
-                let result;
-                
-                try {
-                    result = JSON.parse(responseText);
-                } catch (e) {
-                    console.log("⚠️ No se pudo parsear respuesta");
-                    result = { status: "success" };
-                }
-
-                if (result.status === "success") {
-                    console.log("⏳ Esperando asignación de fila...");
-                    await new Promise(resolve => setTimeout(resolve, 2000));
-
-                    const registrosSheets = await cargarRegistrosDesdeSheets(categoria);
-                    const registroEnSheet = registrosSheets.find(r => 
-                        r["TÍTULO"] === tituloProducto && r["AUTOR/DOCENTE"] === autor
-                    );
-
-                    if (registroEnSheet && registroEnSheet._fila) {
-                        await guardarFilaEnFirebase(docRef.id, registroEnSheet._fila, categoria);
-                    }
-
-                    alert("✅ Registro creado exitosamente");
-                    document.getElementById('form-jose').reset();
-                    ocultarCamposEspecificos();
-                    cargarTablaJose();
-                } else {
-                    throw new Error(result.message || "Error desconocido");
-                }
-
-            } catch (error) {
-                console.error("❌ Error:", error);
-                alert("❌ Error al crear registro: " + error.message);
-            } finally {
-                btnEnviar.disabled = false;
-                btnEnviar.innerHTML = '<span>📤</span> ENVIAR SOLICITUD';
-            }
-        };
-
-        // ==================== MEJORADA: FUNCIÓN GUARDAR EVALUACIÓN (LINA) ====================
-        window.guardarEvaluacion = async () => {
-            const btnGuardar = document.getElementById('btn-guardar-lina');
-            btnGuardar.disabled = true;
-            btnGuardar.innerHTML = '<span>⏳</span> GUARDANDO...';
-
-            try {
-                const docRef = doc(db, "solicitudes", idRegistroActual);
-                const datosOriginales = await getDoc(docRef);
-
-                if (!datosOriginales.exists()) {
-                    throw new Error("Registro no encontrado");
-                }
-
-                const dataCompleta = {
-                    tipo_registro: "LINA",
-                    timestamp_lina: new Date().toISOString(),
-                    documento_id: document.getElementById('edit-doc-id')?.value || '',
-                    escolaridad: document.getElementById('edit-escolaridad')?.value || '',
-                    categoria_docente: document.getElementById('edit-categoria')?.value || '',
-                    dedicacion: document.getElementById('edit-dedicacion')?.value || '',
-                    facultad: document.getElementById('edit-facultad')?.value || '',
-                    puntaje_eval1: parseFloat(document.getElementById('edit-eval1')?.value) || 0,
-                    puntaje_eval2: parseFloat(document.getElementById('edit-eval2')?.value) || 0,
-                    puntaje_asignado: parseFloat(document.getElementById('edit-puntaje-final')?.value) || 0,
-                    estado_ciarp: document.getElementById('edit-estado')?.value || '',
-                    acta_ciarp: document.getElementById('edit-acta')?.value || '',
-                    resolucion: document.getElementById('edit-resolucion')?.value || '',
-                    observaciones_lina: document.getElementById('edit-obs-lina')?.value || '',
-                    _fila: datosOriginales.data()._fila,
-                    _categoria: datosOriginales.data().categoria || datosOriginales.data()._categoria,
-                    titulo_producto: datosOriginales.data().titulo_producto,
-                    autor: datosOriginales.data().autor,
-                    categoria: datosOriginales.data().categoria
-                };
-
-                if (datosOriginales.data().categoria === "Artículos Indexados") {
-                    dataCompleta.modalidad = document.getElementById('edit-modalidad')?.value || '';
-                    dataCompleta.tipo = document.getElementById('edit-tipo')?.value || '';
-                    dataCompleta.pais = document.getElementById('edit-pais')?.value || '';
-                    dataCompleta.issn = document.getElementById('edit-issn')?.value || '';
-                    dataCompleta.clasificacion_publindex = document.getElementById('edit-clasificacion')?.value || '';
-                    dataCompleta.editorial = document.getElementById('edit-editorial')?.value || '';
-                    dataCompleta.anio_publicacion = document.getElementById('edit-anio-pub')?.value || '';
-                    dataCompleta.num_autores = parseInt(document.getElementById('edit-num-autores')?.value) || 0;
-                    dataCompleta.universidades_coautores = document.getElementById('edit-universidades')?.value || '';
-                } else if (datosOriginales.data().categoria === "Artículos No Indexados") {
-                    dataCompleta.issn = document.getElementById('edit-issn')?.value || '';
-                } else if (datosOriginales.data().categoria?.includes("Libro")) {
-                    dataCompleta.isbn = document.getElementById('edit-isbn')?.value || '';
-                    dataCompleta.anio_publicacion = document.getElementById('edit-anio-pub')?.value || '';
-                    dataCompleta.editorial = document.getElementById('edit-editorial')?.value || '';
-                }
-
-                console.log("📤 Enviando actualización completa:", dataCompleta);
-                await updateDoc(docRef, dataCompleta);
-
-                const response = await fetch(urlAppsScript, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(dataCompleta)
-                });
-
-                try {
-                    const responseText = await response.text();
-                    console.log("📥 Respuesta de Sheets:", responseText);
-                } catch (e) {
-                    console.log("✅ Solicitud enviada a Sheets (no-cors)");
-                }
-
-                alert("✅ Evaluación guardada y sincronizada correctamente");
-                cerrarModal();
-                cargarPendientesLina();
-
-            } catch (error) {
-                console.error("❌ Error:", error);
-                alert("❌ Error al guardar: " + error.message);
-            } finally {
-                btnGuardar.disabled = false;
-                btnGuardar.innerHTML = '<span>💾</span> GUARDAR COMPILADO COMPLETO';
-            }
-        };
-
-        // ==================== NUEVA: SINCRONIZACIÓN AUTOMÁTICA DESDE SHEETS ====================
-        async function sincronizarDesdeSheets() {
-            if (rolActual !== 'LINA') return;
-            
-            try {
-                const categorias = [
-                    "Artículos Indexados", 
-                    "Artículos No Indexados", 
-                    "Libros", 
-                    "Capítulos",
-                    "Eventos",
-                    "Proyectos"
-                ];
-                
-                for (const categoria of categorias) {
-                    const registrosSheets = await cargarRegistrosDesdeSheets(categoria);
-                    
-                    for (const regSheet of registrosSheets) {
-                        const titulo = regSheet["TÍTULO"];
-                        const autor = regSheet["AUTOR/DOCENTE"];
-                        
-                        if (!titulo || !autor) continue;
-                        
-                        const q = query(
-                            collection(db, "solicitudes"),
-                            where("titulo_producto", "==", titulo),
-                            where("autor", "==", autor),
-                            limit(1)
-                        );
-                        
-                        const querySnapshot = await getDocs(q);
-                        
-                        if (!querySnapshot.empty) {
-                            const docSnap = querySnapshot.docs[0];
-                            const dataFirebase = docSnap.data();
-                            
-                            const timestampSheets = regSheet["TIMESTAMP LINA"];
-                            const timestampFirebase = dataFirebase.timestamp_lina;
-                            
-                            if (timestampSheets && timestampSheets !== timestampFirebase) {
-                                const actualizacion = {
-                                    puntaje_eval1: parseFloat(regSheet["EVAL 1"]) || 0,
-                                    puntaje_eval2: parseFloat(regSheet["EVAL 2"]) || 0,
-                                    puntaje_asignado: parseFloat(regSheet["PUNTAJE FINAL"]) || 0,
-                                    estado_ciarp: regSheet["ESTADO FINAL"] || dataFirebase.estado_ciarp,
-                                    timestamp_lina: timestampSheets
-                                };
-                                
-                                await updateDoc(doc(db, "solicitudes", docSnap.id), actualizacion);
-                                console.log(`🔄 Sincronizado desde Sheets: ${titulo}`);
-                            }
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error("⚠️ Error en sincronización automática:", error);
-            }
-        }
-
-        // ==================== NUEVA: INICIAR SINCRONIZACIÓN AUTOMÁTICA ====================
-        function iniciarSincronizacionAutomatica() {
-            if (intervalActualizacion) {
-                clearInterval(intervalActualizacion);
-            }
-            
-            intervalActualizacion = setInterval(sincronizarDesdeSheets, 30000);
-            console.log("✅ Sincronización automática activada (cada 30s)");
-        }
-
-        // ==================== MEJORADA: FUNCIÓN INICIAR SESIÓN ====================
-        window.iniciarSesion = async (rol) => {
-            const usuario = prompt("Usuario:");
-            const password = prompt("Contraseña:");
-
-            let acceso = false;
-
-            if (rol === 'JOSE') {
-                if (usuario === 'jose' && password === 'jose2024') {
-                    acceso = true;
-                    rolActual = 'JOSE';
-                    document.getElementById('pantalla-login').classList.add('hidden');
-                    document.getElementById('panel-jose').classList.remove('hidden');
-                    
-                    setTimeout(() => {
-                        const selectCategoria = document.getElementById('categoria');
-                        if (selectCategoria) {
-                            selectCategoria.addEventListener('change', cargarTablaJose);
-                        }
-                    }, 500);
-                }
-            } else if (rol === 'LINA') {
-                if (usuario === 'lina' && password === 'lina2024') {
-                    acceso = true;
-                    rolActual = 'LINA';
-                    document.getElementById('pantalla-login').classList.add('hidden');
-                    document.getElementById('panel-lina').classList.remove('hidden');
-                    
-                    iniciarSincronizacionAutomatica();
-                    cargarPendientesLina();
-                }
-            }
-
-            if (!acceso) {
-                alert("❌ Credenciales incorrectas");
-            }
-        };
-
-        // ==================== FUNCIÓN PARA ABRIR MODAL (LINA) ====================
-        window.abrirModalEvaluacion = async (id) => {
-            idRegistroActual = id;
-            
-            try {
-                const docRef = doc(db, "solicitudes", id);
-                const docSnap = await getDoc(docRef);
-                
-                if (!docSnap.exists()) {
-                    throw new Error("Registro no encontrado");
-                }
-                
+            querySnapshot.forEach((docSnap) => {
                 const data = docSnap.data();
+                const estadoColor = data.estado_ciarp === 'Aprobado' ? 'bg-green-100 text-green-800' : 
+                                   data.estado_ciarp === 'No Aprobado' ? 'bg-red-100 text-red-800' : 
+                                   'bg-yellow-100 text-yellow-800';
                 
-                // Llenar datos de José (solo lectura)
-                document.getElementById('modal-categoria').textContent = data.categoria || '';
-                document.getElementById('modal-titulo').textContent = data.titulo_producto || '';
-                document.getElementById('modal-autor').textContent = data.autor || '';
-                document.getElementById('modal-fecha').textContent = data.fecha_recibido || '';
+                const row = `
+                    <tr class="hover:bg-gray-50">
+                        <td class="border px-2 py-2 text-xs">${data.anio || ''}</td>
+                        <td class="border px-2 py-2 text-xs">${data.semestre || ''}</td>
+                        <td class="border px-2 py-2 text-xs font-semibold">${data.titulo_producto || ''}</td>
+                        <td class="border px-2 py-2 text-xs">${data.autor || ''}</td>
+                        <td class="border px-2 py-2 text-xs">${data.fecha_recibido || ''}</td>
+                        <td class="border px-2 py-2 text-center">
+                            <span class="px-2 py-1 rounded text-xs font-bold ${estadoColor}">
+                                ${data.estado_ciarp || 'Pendiente'}
+                            </span>
+                        </td>
+                        <td class="border px-2 py-2 text-center">
+                            <button onclick="eliminarRegistroJose('${docSnap.id}', '${data._categoria}', ${data._fila})" 
+                                    class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-xs font-bold">
+                                🗑️ Eliminar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+            
+        } catch (error) {
+            console.error("❌ Error al cargar tabla:", error);
+            document.getElementById('tabla-registros-jose').innerHTML = 
+                '<tr><td colspan="7" class="text-center py-4 text-red-500">Error al cargar registros</td></tr>';
+        }
+    };
+    
+    // ==================== ELIMINAR REGISTRO (FIREBASE + SHEETS) ====================
+    
+    window.eliminarRegistroJose = async (firebaseId, categoria, fila) => {
+        if (!confirm('¿Está seguro de eliminar este registro? Esta acción no se puede deshacer.')) {
+            return;
+        }
+        
+        try {
+            // 1. Eliminar de Google Sheets
+            const response = await fetch(
+                `${urlAppsScript}?action=eliminarRegistro&categoria=${encodeURIComponent(categoria)}&fila=${fila}`,
+                { method: 'GET' }
+            );
+            
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                // 2. Eliminar de Firebase
+                const docRef = doc(db, "solicitudes", firebaseId);
+                await deleteDoc(docRef);
                 
-                // Llenar campos de Lina (editables)
-                document.getElementById('edit-doc-id').value = data.documento_id || '';
-                document.getElementById('edit-escolaridad').value = data.escolaridad || '';
-                document.getElementById('edit-categoria').value = data.categoria_docente || '';
-                document.getElementById('edit-dedicacion').value = data.dedicacion || '';
-                document.getElementById('edit-facultad').value = data.facultad || '';
-                document.getElementById('edit-eval1').value = data.puntaje_eval1 || 0;
-                document.getElementById('edit-eval2').value = data.puntaje_eval2 || 0;
-                document.getElementById('edit-puntaje-final').value = data.puntaje_asignado || 0;
-                document.getElementById('edit-estado').value = data.estado_ciarp || '';
-                document.getElementById('edit-acta').value = data.acta_ciarp || '';
-                document.getElementById('edit-resolucion').value = data.resolucion || '';
-                document.getElementById('edit-obs-lina').value = data.observaciones_lina || '';
+                alert(`✅ Registro eliminado: ${result.titulo}`);
                 
-                // Mostrar modal
-                document.getElementById('modal-lina').classList.remove('hidden');
-                
-            } catch (error) {
-                console.error("❌ Error al abrir modal:", error);
-                alert("❌ No se pudo cargar el registro");
+                // 3. Recargar tabla
+                cargarTablaJose();
+            } else {
+                throw new Error(result.message || 'Error al eliminar de Sheets');
             }
-        };
-    </script>
-</body>
-</html>
+            
+        } catch (error) {
+            console.error("❌ Error al eliminar:", error);
+            alert("❌ Error al eliminar: " + error.message);
+        }
+    };
+    
+    // ==================== ENVIAR SOLICITUD MEJORADA (JOSÉ) ====================
+    
+    window.enviarSolicitud = async () => {
+        const categoria = document.getElementById('categoria').value;
+        const anio = document.getElementById('anio').value;
+        const semestre = document.getElementById('semestre').value;
+        const fechaRecibido = document.getElementById('fecha-recibido').value;
+        const autor = document.getElementById('autor').value;
+        const programa = document.getElementById('programa').value;
+        const docCompleta = document.getElementById('doc-completa').value;
+        const estadoCiarp = document.getElementById('estado-ciarp').value;
+        const observaciones = document.getElementById('observaciones-jose').value;
+
+        if (!categoria || !anio || !semestre || !fechaRecibido || !autor) {
+            alert("⚠️ Complete los campos obligatorios");
+            return;
+        }
+
+        let tituloProducto = '';
+        if (categoria.includes("Artículos")) {
+            tituloProducto = document.getElementById('nombre_articulo')?.value || '';
+        } else if (categoria.includes("Libro")) {
+            tituloProducto = document.getElementById('titulo_libro')?.value || '';
+        } else if (categoria.includes("Capítulo")) {
+            tituloProducto = document.getElementById('titulo_capitulo')?.value || '';
+        }
+
+        if (!tituloProducto) {
+            alert("⚠️ Complete el título del producto");
+            return;
+        }
+
+        const btnEnviar = document.getElementById('btn-enviar-jose');
+        btnEnviar.disabled = true;
+        btnEnviar.innerText = "⏳ ENVIANDO...";
+
+        try {
+            // 1. CREAR EN FIREBASE
+            const datosFirebase = {
+                categoria: categoria,
+                anio: anio,
+                semestre: semestre,
+                fecha_recibido: fechaRecibido,
+                titulo_producto: tituloProducto,
+                autor: autor,
+                programa: programa,
+                doc_completa: docCompleta,
+                estado_ciarp: estadoCiarp,
+                observaciones_jose: observaciones,
+                timestamp: new Date().toISOString(),
+                tipo_registro: "JOSE"
+            };
+
+            const docRef = await addDoc(collection(db, "solicitudes"), datosFirebase);
+            console.log("✅ Registro creado en Firebase:", docRef.id);
+
+            // 2. CREAR EN GOOGLE SHEETS
+            const datosSheets = {
+                ...datosFirebase,
+                tipo_registro: "JOSE"
+            };
+
+            const response = await fetch(urlAppsScript, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(datosSheets)
+            });
+
+            const result = await response.json();
+            
+            if (result.status === 'success' && result.fila) {
+                // 3. GUARDAR NÚMERO DE FILA EN FIREBASE
+                await guardarFilaEnFirebase(docRef.id, result.fila, categoria);
+                
+                alert("✅ Registro creado y sincronizado correctamente");
+                
+                // Limpiar formulario
+                document.getElementById('form-jose').reset();
+                
+                // Recargar tabla
+                cargarTablaJose();
+            } else {
+                throw new Error("Error al crear en Sheets");
+            }
+
+        } catch (error) {
+            console.error("❌ Error:", error);
+            alert("❌ Error al guardar: " + error.message);
+        } finally {
+            btnEnviar.disabled = false;
+            btnEnviar.innerText = "📤 ENVIAR SOLICITUD";
+        }
+    };
+    
+    // ==================== GUARDAR EVALUACIÓN (LINA) - MEJORADA ====================
+    
+    window.guardarEvaluacion = async () => {
+        const idActual = document.getElementById('modal-id').value;
+        
+        if (!idActual) {
+            alert("⚠️ No se encontró el ID del documento");
+            return;
+        }
+
+        const btnGuardar = document.getElementById('btn-guardar-lina');
+        btnGuardar.disabled = true;
+        btnGuardar.innerHTML = '<span class="animate-pulse">⏳</span> GUARDANDO...';
+
+        try {
+            const docRef = doc(db, "solicitudes", idActual);
+            const docSnap = await getDoc(docRef);
+            
+            if (!docSnap.exists()) {
+                throw new Error("Documento no encontrado");
+            }
+
+            const datosOriginales = docSnap.data();
+
+            // DATOS COMPLETOS A ACTUALIZAR
+            const dataCompleta = {
+                timestamp_lina: new Date().toISOString(),
+                estado_ciarp: document.getElementById('edit-estado').value,
+                documento_id: document.getElementById('edit-doc-id').value,
+                escolaridad: document.getElementById('edit-escolaridad').value,
+                categoria_docente: document.getElementById('edit-categoria-docente').value,
+                dedicacion: document.getElementById('edit-dedicacion').value,
+                facultad: document.getElementById('edit-facultad').value,
+                puntaje_eval1: parseFloat(document.getElementById('edit-eval1').value) || 0,
+                puntaje_eval2: parseFloat(document.getElementById('edit-eval2').value) || 0,
+                puntaje_asignado: parseFloat(document.getElementById('edit-puntaje').value) || 0,
+                acta_ciarp: document.getElementById('edit-acta').value,
+                resolucion: document.getElementById('edit-resolucion').value,
+                observaciones_lina: document.getElementById('edit-observaciones').value,
+                
+                // ✅ INCLUIR DATOS ORIGINALES PARA SHEETS
+                categoria: datosOriginales.categoria,
+                titulo_producto: datosOriginales.titulo_producto,
+                autor: datosOriginales.autor,
+                anio: datosOriginales.anio,
+                semestre: datosOriginales.semestre,
+                fecha_recibido: datosOriginales.fecha_recibido,
+                programa: datosOriginales.programa,
+                doc_completa: datosOriginales.doc_completa,
+                observaciones_jose: datosOriginales.observaciones_jose,
+                
+                // ✅ INCLUIR NÚMERO DE FILA Y CATEGORÍA
+                _fila: datosOriginales._fila,
+                _categoria: datosOriginales._categoria,
+                
+                tipo_registro: "LINA"
+            };
+
+            // Campos específicos por categoría
+            if (datosOriginales.categoria === "Artículos Indexados") {
+                dataCompleta.issn = document.getElementById('edit-issn')?.value || '';
+                dataCompleta.clasificacion_publindex = document.getElementById('edit-clasificacion')?.value || '';
+                dataCompleta.editorial = document.getElementById('edit-editorial')?.value || '';
+                dataCompleta.anio_publicacion = document.getElementById('edit-anio-pub')?.value || '';
+                dataCompleta.num_autores = parseInt(document.getElementById('edit-num-autores')?.value) || 0;
+                dataCompleta.universidades_coautores = document.getElementById('edit-universidades')?.value || '';
+            } else if (datosOriginales.categoria === "Artículos No Indexados") {
+                dataCompleta.issn = document.getElementById('edit-issn')?.value || '';
+            } else if (datosOriginales.categoria?.includes("Libro")) {
+                dataCompleta.isbn = document.getElementById('edit-isbn')?.value || '';
+                dataCompleta.anio_publicacion = document.getElementById('edit-anio-pub')?.value || '';
+                dataCompleta.editorial = document.getElementById('edit-editorial')?.value || '';
+            }
+
+            console.log("📤 Enviando actualización completa a Sheets:", dataCompleta);
+
+            // 1. ACTUALIZAR FIREBASE
+            await updateDoc(docRef, dataCompleta);
+            console.log("✅ Firebase actualizado");
+
+            // 2. ACTUALIZAR GOOGLE SHEETS
+            const response = await fetch(urlAppsScript, {
+                method: 'POST',
+                mode: 'no-cors', // Importante para evitar CORS
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dataCompleta)
+            });
+
+            console.log("✅ Solicitud enviada a Sheets");
+
+            alert("✅ Evaluación guardada y sincronizada correctamente");
+            cerrarModal();
+            cargarPendientesLina();
+
+        } catch (error) {
+            console.error("❌ Error:", error);
+            alert("❌ Error al guardar: " + error.message);
+        } finally {
+            btnGuardar.disabled = false;
+            btnGuardar.innerHTML = '<span>💾</span> GUARDAR COMPILADO COMPLETO';
+        }
+    };
+    
+    // ==================== SINCRONIZACIÓN AUTOMÁTICA DESDE SHEETS (LINA) ====================
+    
+    async function sincronizarDesdeSheets() {
+        if (rolActual !== 'LINA') return;
+        
+        try {
+            const categorias = ["Artículos Indexados", "Artículos No Indexados", "Libros", "Capítulos"];
+            let totalActualizados = 0;
+            
+            for (const categoria of categorias) {
+                const registrosSheets = await cargarRegistrosDesdeSheets(categoria);
+                
+                for (const regSheet of registrosSheets) {
+                    const titulo = regSheet["TÍTULO"];
+                    const autor = regSheet["AUTOR/DOCENTE"];
+                    
+                    if (!titulo || !autor) continue;
+                    
+                    // Buscar en Firebase por título + autor
+                    const q = query(
+                        collection(db, "solicitudes"),
+                        where("titulo_producto", "==", titulo),
+                        where("autor", "==", autor),
+                        limit(1)
+                    );
+                    
+                    const querySnapshot = await getDocs(q);
+                    
+                    if (!querySnapshot.empty) {
+                        const docSnap = querySnapshot.docs[0];
+                        const dataFirebase = docSnap.data();
+                        
+                        // Comparar timestamps
+                        const timestampSheets = regSheet["TIMESTAMP LINA"];
+                        const timestampFirebase = dataFirebase.timestamp_lina;
+                        
+                        // Si Sheets tiene cambios más recientes
+                        if (timestampSheets && timestampSheets !== timestampFirebase) {
+                            const actualizacion = {
+                                puntaje_eval1: parseFloat(regSheet["EVAL 1"]) || 0,
+                                puntaje_eval2: parseFloat(regSheet["EVAL 2"]) || 0,
+                                puntaje_asignado: parseFloat(regSheet["PUNTAJE FINAL"]) || 0,
+                                estado_ciarp: regSheet["ESTADO FINAL"] || dataFirebase.estado_ciarp,
+                                documento_id: regSheet["DOC ID"] || dataFirebase.documento_id,
+                                escolaridad: regSheet["ESCOLARIDAD"] || dataFirebase.escolaridad,
+                                categoria_docente: regSheet["CATEGORÍA DOCENTE"] || dataFirebase.categoria_docente,
+                                dedicacion: regSheet["DEDICACIÓN"] || dataFirebase.dedicacion,
+                                facultad: regSheet["FACULTAD"] || dataFirebase.facultad,
+                                acta_ciarp: regSheet["ACTA CIARP"] || dataFirebase.acta_ciarp,
+                                resolucion: regSheet["RESOLUCIÓN"] || dataFirebase.resolucion,
+                                observaciones_lina: regSheet["OBS LINA"] || dataFirebase.observaciones_lina,
+                                timestamp_lina: timestampSheets,
+                                _fila: regSheet["_fila"] || dataFirebase._fila
+                            };
+                            
+                            await updateDoc(doc(db, "solicitudes", docSnap.id), actualizacion);
+                            totalActualizados++;
+                            console.log(`🔄 Sincronizado desde Sheets: ${titulo}`);
+                        }
+                    }
+                }
+            }
+            
+            if (totalActualizados > 0) {
+                console.log(`✅ ${totalActualizados} registros sincronizados desde Sheets`);
+                // Recargar la tabla de pendientes si hay actualizaciones
+                cargarPendientesLina();
+            }
+            
+        } catch (error) {
+            console.error("⚠️ Error en sincronización automática:", error);
+        }
+    }
+    
+    // Iniciar sincronización automática para Lina (cada 20 segundos)
+    function iniciarSincronizacionAutomatica() {
+        if (intervalSincronizacionLina) {
+            clearInterval(intervalSincronizacionLina);
+        }
+        
+        // Sincronizar cada 20 segundos
+        intervalSincronizacionLina = setInterval(sincronizarDesdeSheets, 20000);
+        
+        // Primera sincronización inmediata
+        sincronizarDesdeSheets();
+        
+        console.log("✅ Sincronización automática activada (cada 20s)");
+    }
+    
+    // ==================== MODIFICAR FUNCIÓN DE INICIO DE SESIÓN ====================
+    
+    const iniciarSesionOriginal = window.iniciarSesion;
+    window.iniciarSesion = function(rol) {
+        iniciarSesionOriginal(rol);
+        
+        if (rol === 'LINA') {
+            iniciarSincronizacionAutomatica();
+            cargarPendientesLina();
+        } else if (rol === 'JOSE') {
+            // Cargar tabla al cambiar categoría
+            setTimeout(() => {
+                const selectCategoria = document.getElementById('categoria');
+                if (selectCategoria) {
+                    selectCategoria.addEventListener('change', cargarTablaJose);
+                    // Cargar tabla si ya hay una categoría seleccionada
+                    if (selectCategoria.value) {
+                        cargarTablaJose();
+                    }
+                }
+            }, 500);
+        }
+    };
+    
+    // Limpiar intervalos al cerrar sesión
+    window.addEventListener('beforeunload', () => {
+        if (intervalSincronizacionLina) {
+            clearInterval(intervalSincronizacionLina);
+        }
+    });
+
+</script>
+
+<!-- ==================== HTML: TABLA DE REGISTROS PARA JOSÉ ==================== -->
+
+<!-- Agregar esta sección en el panel de José, después del formulario -->
+
+<div class="mt-8 bg-white rounded-xl shadow-lg p-6">
+    <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <span class="bg-[#003d2b] text-white p-2 rounded">📊</span>
+            REGISTROS INGRESADOS
+        </h3>
+        <button onclick="cargarTablaJose()" 
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-sm transition-all hover:scale-105">
+            🔄 ACTUALIZAR
+        </button>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full border-collapse border">
+            <thead>
+                <tr class="bg-[#003d2b] text-white">
+                    <th class="border px-3 py-2 text-xs font-bold">AÑO</th>
+                    <th class="border px-3 py-2 text-xs font-bold">SEM</th>
+                    <th class="border px-3 py-2 text-xs font-bold">TÍTULO</th>
+                    <th class="border px-3 py-2 text-xs font-bold">AUTOR</th>
+                    <th class="border px-3 py-2 text-xs font-bold">FECHA</th>
+                    <th class="border px-3 py-2 text-xs font-bold">ESTADO</th>
+                    <th class="border px-3 py-2 text-xs font-bold">ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-registros-jose">
+                <tr>
+                    <td colspan="7" class="text-center py-4 text-gray-500">
+                        Seleccione una categoría para ver los registros
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ==================== ESTILOS ADICIONALES ==================== -->
+<style>
+    /* Animación para el botón de actualizar */
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    button:active {
+        transform: scale(0.98);
+    }
+    
+    /* Hover effect para filas de tabla */
+    tbody tr:hover {
+        background-color: #f9fafb;
+        transition: background-color 0.2s;
+    }
+</style>
