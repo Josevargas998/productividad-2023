@@ -24,7 +24,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbz6Ro0qt7YOM3pDuDOyMbaSUhuO-hAGC_-ljKCNqx9ook4jXqaykdeYcoFu9CbIPvQMGg/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbx8SzUmIRQ5TedVBRdg4WDW5Jkxi9uZh4SLCqbeyC1XYZbKxZcPtaVnkT0jsz2Z-OzAVg/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
@@ -486,21 +486,17 @@
                 
                 console.log('📤 Enviando datos:', datosGenerales);
                 
-                let firebaseId = '';
-                
                 if (modoEdicion && idRegistroActual) {
                     // ACTUALIZAR registro existente
-                    datosGenerales._fila = document.getElementById('fila_original')?.value;
-                    
                     const docRef = doc(db, 'solicitudes', idRegistroActual);
                     await updateDoc(docRef, datosGenerales);
                     console.log('✅ Actualizado en Firebase:', idRegistroActual);
-                    firebaseId = idRegistroActual;
+                    
+                    datosGenerales._fila = document.getElementById('fila_original')?.value;
                 } else {
                     // CREAR nuevo registro
                     const docRef = await addDoc(collection(db, 'solicitudes'), datosGenerales);
                     console.log('✅ Guardado en Firebase:', docRef.id);
-                    firebaseId = docRef.id;
                 }
                 
                 // Enviar a Google Sheets
@@ -516,16 +512,6 @@
                 console.log('✅ Respuesta de Sheets:', resultSheets);
                 
                 if (resultSheets.status === 'success') {
-                    // Guardar _fila si es nuevo registro
-                    if (!modoEdicion && resultSheets.fila && firebaseId) {
-                        const docRef = doc(db, 'solicitudes', firebaseId);
-                        await updateDoc(docRef, {
-                            _fila: resultSheets.fila,
-                            _categoria: datosGenerales.categoria
-                        });
-                        console.log('✅ _fila guardado:', resultSheets.fila);
-                    }
-                    
                     alert(modoEdicion ? '✅ Registro actualizado correctamente' : '✅ Solicitud enviada correctamente');
                     limpiarFormularioJose();
                     cargarRegistrosJose();
@@ -1254,5 +1240,3 @@
 
 </body>
 </html>
-
-
