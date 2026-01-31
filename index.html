@@ -24,7 +24,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbxXO-qvTUwRrv41QWUk4hmZ3LRY8ODQA_nrRjnAjtnrn_1QTWamX4eOgKHTyM-wFD7LXw/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbz0thikM5QHgWs44LeSh8-MRoFLDfPVvi22gCRW3SoTCbAl5yqsX2nAfuKt7VyF3bNmjw/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
@@ -502,6 +502,9 @@
                 // Enviar a Google Sheets
                 const responseSheets = await fetch(urlAppsScript, {
                     method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify(datosGenerales)
                 });
                 
@@ -888,6 +891,9 @@
                 
                 const responseSheets = await fetch(urlAppsScript, {
                     method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify(datosCompletos)
                 });
                 
@@ -1234,4 +1240,3 @@
 
 </body>
 </html>
-
