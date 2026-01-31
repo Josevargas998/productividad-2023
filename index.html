@@ -24,7 +24,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbwMNoEzgvz36pRrXr_ssmztie2uvIqwo1QfNkoV9ootqPinmFQzu6_90cAus_VDM6JlPg/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbyZZlYO5WIa8FBb6awOzfkt83scw3afalYIh-1jT9otLMMYquwz4qrxwXMGniNA0e19_Q/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
@@ -486,19 +486,21 @@
                 
                 console.log('📤 Enviando datos:', datosGenerales);
                 
-                let firebaseDocRef;
+                let firebaseId = '';
                 
                 if (modoEdicion && idRegistroActual) {
                     // ACTUALIZAR registro existente
                     datosGenerales._fila = document.getElementById('fila_original')?.value;
                     
-                    firebaseDocRef = doc(db, 'solicitudes', idRegistroActual);
-                    await updateDoc(firebaseDocRef, datosGenerales);
+                    const docRef = doc(db, 'solicitudes', idRegistroActual);
+                    await updateDoc(docRef, datosGenerales);
                     console.log('✅ Actualizado en Firebase:', idRegistroActual);
+                    firebaseId = idRegistroActual;
                 } else {
                     // CREAR nuevo registro
-                    firebaseDocRef = await addDoc(collection(db, 'solicitudes'), datosGenerales);
-                    console.log('✅ Guardado en Firebase:', firebaseDocRef.id);
+                    const docRef = await addDoc(collection(db, 'solicitudes'), datosGenerales);
+                    console.log('✅ Guardado en Firebase:', docRef.id);
+                    firebaseId = docRef.id;
                 }
                 
                 // Enviar a Google Sheets
@@ -514,13 +516,14 @@
                 console.log('✅ Respuesta de Sheets:', resultSheets);
                 
                 if (resultSheets.status === 'success') {
-                    // Si es nuevo registro, guardar el número de fila en Firebase
-                    if (!modoEdicion && resultSheets.fila) {
-                        await updateDoc(firebaseDocRef, {
+                    // Guardar _fila si es nuevo registro
+                    if (!modoEdicion && resultSheets.fila && firebaseId) {
+                        const docRef = doc(db, 'solicitudes', firebaseId);
+                        await updateDoc(docRef, {
                             _fila: resultSheets.fila,
                             _categoria: datosGenerales.categoria
                         });
-                        console.log('✅ Número de fila guardado:', resultSheets.fila);
+                        console.log('✅ _fila guardado:', resultSheets.fila);
                     }
                     
                     alert(modoEdicion ? '✅ Registro actualizado correctamente' : '✅ Solicitud enviada correctamente');
