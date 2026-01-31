@@ -24,7 +24,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbywseCZYwuNH2r1l-i1z9b2-4nNyuvGducG2t6kxzf94Dn2aE8kjwrhrxi-GvT78OkIvQ/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbwMNoEzgvz36pRrXr_ssmztie2uvIqwo1QfNkoV9ootqPinmFQzu6_90cAus_VDM6JlPg/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
@@ -486,7 +486,7 @@
                 
                 console.log('📤 Enviando datos:', datosGenerales);
                 
-                let firebas eDocRef;
+                let firebaseDocRef;
                 
                 if (modoEdicion && idRegistroActual) {
                     // ACTUALIZAR registro existente
