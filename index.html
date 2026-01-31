@@ -24,19 +24,20 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const urlAppsScript = "https://script.google.com/macros/s/AKfycbxglF9wDiQL234Cl-k2Py0h9KPwYwAcaduLCjeRXX5z_x41QRGv3gjaZk_0Mg2KEUml_w/exec";
+        const urlAppsScript = "https://script.google.com/macros/s/AKfycbxznWTJQu41823GyI8g1WzygkBkdBlbesj4ElT2_cCNhq9tI6LDYl9Eni5yH2w0-adjZQ/exec";
 
         let rolActual = '';
         let idRegistroActual = null;
         let baseDocentes = [];
         let docenteSeleccionadoActual = null;
+        let modoEdicion = false;
 
         const CONTRASEÑAS = {
             'JOSE': 'jose2026',
             'LINA': 'lina2026'
         };
 
-        // ==================== CONFIGURACIÓN DE CAMPOS POR CATEGORÍA ====================
+        // ==================== CONFIGURACIÓN DE CAMPOS POR CATEGORÍA CON PARES EVALUADORES ====================
         const CAMPOS_POR_CATEGORIA = {
             "Artículos Indexados": [
                 { nombre: "nombre_articulo", label: "Nombre del Artículo", tipo: "text", requerido: true },
@@ -49,10 +50,14 @@
             ],
             "Libro Investigación": [
                 { nombre: "titulo_libro", label: "Título del Libro", tipo: "text", requerido: true },
-                { nombre: "evaluadores", label: "Evaluadores", tipo: "text", requerido: false },
-                { nombre: "perfil_par_evaluador", label: "Perfil Par Evaluador", tipo: "text", requerido: false },
-                { nombre: "fecha_verificacion", label: "Fecha de Verificación", tipo: "date", requerido: false },
-                { nombre: "link_verificacion", label: "Link Verificación Par Evaluador", tipo: "text", requerido: false },
+                { nombre: "par1_nombre", label: "Par Evaluador 1 - Nombre", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par1_perfil", label: "Par Evaluador 1 - Perfil", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par1_fecha_verificacion", label: "Par Evaluador 1 - Fecha Verificación", tipo: "date", requerido: false, grupo: "par1" },
+                { nombre: "par1_link_verificacion", label: "Par Evaluador 1 - Link Verificación", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par2_nombre", label: "Par Evaluador 2 - Nombre", tipo: "text", requerido: false, grupo: "par2" },
+                { nombre: "par2_perfil", label: "Par Evaluador 2 - Perfil", tipo: "text", requerido: false, grupo: "par2" },
+                { nombre: "par2_fecha_verificacion", label: "Par Evaluador 2 - Fecha Verificación", tipo: "date", requerido: false, grupo: "par2" },
+                { nombre: "par2_link_verificacion", label: "Par Evaluador 2 - Link Verificación", tipo: "text", requerido: false, grupo: "par2" },
                 { nombre: "fecha_invitacion", label: "Fecha Invitación", tipo: "date", requerido: false }
             ],
             "Libro Texto": [
@@ -60,10 +65,14 @@
                 { nombre: "area_conocimiento", label: "Área de Conocimiento", tipo: "text", requerido: true },
                 { nombre: "enviado_curricular", label: "Enviado Curricular", tipo: "date", requerido: false },
                 { nombre: "recibido_curricular", label: "Recibido del Curricular", tipo: "date", requerido: false },
-                { nombre: "par_evaluador", label: "Par Evaluador", tipo: "text", requerido: false },
-                { nombre: "perfil_par_evaluador", label: "Perfil Par Evaluador", tipo: "text", requerido: false },
-                { nombre: "fecha_verificacion", label: "Fecha de Verificación", tipo: "date", requerido: false },
-                { nombre: "link_verificacion", label: "Link Verificación Par Evaluador", tipo: "text", requerido: false },
+                { nombre: "par1_nombre", label: "Par Evaluador 1 - Nombre", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par1_perfil", label: "Par Evaluador 1 - Perfil", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par1_fecha_verificacion", label: "Par Evaluador 1 - Fecha Verificación", tipo: "date", requerido: false, grupo: "par1" },
+                { nombre: "par1_link_verificacion", label: "Par Evaluador 1 - Link Verificación", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par2_nombre", label: "Par Evaluador 2 - Nombre", tipo: "text", requerido: false, grupo: "par2" },
+                { nombre: "par2_perfil", label: "Par Evaluador 2 - Perfil", tipo: "text", requerido: false, grupo: "par2" },
+                { nombre: "par2_fecha_verificacion", label: "Par Evaluador 2 - Fecha Verificación", tipo: "date", requerido: false, grupo: "par2" },
+                { nombre: "par2_link_verificacion", label: "Par Evaluador 2 - Link Verificación", tipo: "text", requerido: false, grupo: "par2" },
                 { nombre: "fecha_invitacion", label: "Fecha Invitación", tipo: "date", requerido: false },
                 { nombre: "fecha_reemision", label: "Fecha Reemisión", tipo: "date", requerido: false }
             ],
@@ -72,10 +81,14 @@
                 { nombre: "area_conocimiento", label: "Área de Conocimiento", tipo: "text", requerido: true },
                 { nombre: "enviado_facultad", label: "Enviado Facultad", tipo: "date", requerido: false },
                 { nombre: "recibido_facultad", label: "Recibido Facultad", tipo: "date", requerido: false },
-                { nombre: "evaluadores", label: "Evaluadores", tipo: "text", requerido: false },
-                { nombre: "perfil_par_evaluador", label: "Perfil Par Evaluador", tipo: "text", requerido: false },
-                { nombre: "fecha_verificacion", label: "Fecha de Verificación", tipo: "date", requerido: false },
-                { nombre: "link_verificacion", label: "Link Verificación Par Evaluador", tipo: "text", requerido: false },
+                { nombre: "par1_nombre", label: "Par Evaluador 1 - Nombre", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par1_perfil", label: "Par Evaluador 1 - Perfil", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par1_fecha_verificacion", label: "Par Evaluador 1 - Fecha Verificación", tipo: "date", requerido: false, grupo: "par1" },
+                { nombre: "par1_link_verificacion", label: "Par Evaluador 1 - Link Verificación", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par2_nombre", label: "Par Evaluador 2 - Nombre", tipo: "text", requerido: false, grupo: "par2" },
+                { nombre: "par2_perfil", label: "Par Evaluador 2 - Perfil", tipo: "text", requerido: false, grupo: "par2" },
+                { nombre: "par2_fecha_verificacion", label: "Par Evaluador 2 - Fecha Verificación", tipo: "date", requerido: false, grupo: "par2" },
+                { nombre: "par2_link_verificacion", label: "Par Evaluador 2 - Link Verificación", tipo: "text", requerido: false, grupo: "par2" },
                 { nombre: "fecha_invitacion", label: "Fecha Invitación", tipo: "date", requerido: false },
                 { nombre: "fecha_reemision", label: "Fecha Reemisión", tipo: "date", requerido: false }
             ],
@@ -84,37 +97,53 @@
                 { nombre: "estado", label: "Estado", tipo: "select", opciones: ["En proceso", "Completo", "Pendiente"], requerido: true },
                 { nombre: "fecha_envio_comite", label: "Fecha Envío Comité", tipo: "date", requerido: false },
                 { nombre: "concepto_comite", label: "Concepto Comité", tipo: "select", opciones: ["SI", "NO"], requerido: false },
-                { nombre: "evaluadores", label: "Evaluadores", tipo: "text", requerido: false },
-                { nombre: "perfil_par_evaluador", label: "Perfil Par Evaluador", tipo: "text", requerido: false },
-                { nombre: "fecha_verificacion", label: "Fecha de Verificación", tipo: "date", requerido: false },
-                { nombre: "link_verificacion", label: "Link Verificación Par Evaluador", tipo: "text", requerido: false },
+                { nombre: "par1_nombre", label: "Par Evaluador 1 - Nombre", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par1_perfil", label: "Par Evaluador 1 - Perfil", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par1_fecha_verificacion", label: "Par Evaluador 1 - Fecha Verificación", tipo: "date", requerido: false, grupo: "par1" },
+                { nombre: "par1_link_verificacion", label: "Par Evaluador 1 - Link Verificación", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par2_nombre", label: "Par Evaluador 2 - Nombre", tipo: "text", requerido: false, grupo: "par2" },
+                { nombre: "par2_perfil", label: "Par Evaluador 2 - Perfil", tipo: "text", requerido: false, grupo: "par2" },
+                { nombre: "par2_fecha_verificacion", label: "Par Evaluador 2 - Fecha Verificación", tipo: "date", requerido: false, grupo: "par2" },
+                { nombre: "par2_link_verificacion", label: "Par Evaluador 2 - Link Verificación", tipo: "text", requerido: false, grupo: "par2" },
                 { nombre: "fecha_invitacion", label: "Fecha Invitación", tipo: "date", requerido: false },
                 { nombre: "fecha_remision", label: "Fecha Remisión", tipo: "date", requerido: false }
             ],
             "Producción Técnica": [
                 { nombre: "titulo_produccion", label: "Título de la Producción", tipo: "text", requerido: true },
                 { nombre: "estado", label: "Estado", tipo: "select", opciones: ["En proceso", "Completo", "Pendiente"], requerido: true },
-                { nombre: "evaluador", label: "Evaluador", tipo: "text", requerido: false },
-                { nombre: "perfil_par_evaluador", label: "Perfil Par Evaluador", tipo: "text", requerido: false },
-                { nombre: "fecha_verificacion", label: "Fecha de Verificación", tipo: "date", requerido: false },
-                { nombre: "link_verificacion", label: "Link Verificación Par Evaluador", tipo: "text", requerido: false }
+                { nombre: "par1_nombre", label: "Par Evaluador 1 - Nombre", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par1_perfil", label: "Par Evaluador 1 - Perfil", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par1_fecha_verificacion", label: "Par Evaluador 1 - Fecha Verificación", tipo: "date", requerido: false, grupo: "par1" },
+                { nombre: "par1_link_verificacion", label: "Par Evaluador 1 - Link Verificación", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par2_nombre", label: "Par Evaluador 2 - Nombre", tipo: "text", requerido: false, grupo: "par2" },
+                { nombre: "par2_perfil", label: "Par Evaluador 2 - Perfil", tipo: "text", requerido: false, grupo: "par2" },
+                { nombre: "par2_fecha_verificacion", label: "Par Evaluador 2 - Fecha Verificación", tipo: "date", requerido: false, grupo: "par2" },
+                { nombre: "par2_link_verificacion", label: "Par Evaluador 2 - Link Verificación", tipo: "text", requerido: false, grupo: "par2" }
             ],
             "Producción Audiovisual": [
                 { nombre: "titulo_produccion", label: "Título de la Producción", tipo: "text", requerido: true },
                 { nombre: "estado", label: "Estado", tipo: "select", opciones: ["En proceso", "Completo", "Pendiente"], requerido: true },
-                { nombre: "evaluadores", label: "Evaluadores", tipo: "text", requerido: false },
-                { nombre: "perfil_par_evaluador", label: "Perfil Par Evaluador", tipo: "text", requerido: false },
-                { nombre: "fecha_verificacion", label: "Fecha de Verificación", tipo: "date", requerido: false },
-                { nombre: "link_verificacion", label: "Link Verificación Par Evaluador", tipo: "text", requerido: false },
+                { nombre: "par1_nombre", label: "Par Evaluador 1 - Nombre", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par1_perfil", label: "Par Evaluador 1 - Perfil", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par1_fecha_verificacion", label: "Par Evaluador 1 - Fecha Verificación", tipo: "date", requerido: false, grupo: "par1" },
+                { nombre: "par1_link_verificacion", label: "Par Evaluador 1 - Link Verificación", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par2_nombre", label: "Par Evaluador 2 - Nombre", tipo: "text", requerido: false, grupo: "par2" },
+                { nombre: "par2_perfil", label: "Par Evaluador 2 - Perfil", tipo: "text", requerido: false, grupo: "par2" },
+                { nombre: "par2_fecha_verificacion", label: "Par Evaluador 2 - Fecha Verificación", tipo: "date", requerido: false, grupo: "par2" },
+                { nombre: "par2_link_verificacion", label: "Par Evaluador 2 - Link Verificación", tipo: "text", requerido: false, grupo: "par2" },
                 { nombre: "fecha_invitacion", label: "Fecha Invitación", tipo: "date", requerido: false },
                 { nombre: "fecha_reemision", label: "Fecha Reemisión", tipo: "date", requerido: false }
             ],
             "Obra Artística": [
                 { nombre: "titulo_obra", label: "Título de la Obra", tipo: "text", requerido: true },
-                { nombre: "nombre_par_evaluador", label: "Nombre Par Evaluador", tipo: "text", requerido: false },
-                { nombre: "perfil_par_evaluador", label: "Perfil Par Evaluador", tipo: "text", requerido: false },
-                { nombre: "fecha_verificacion", label: "Fecha de Verificación", tipo: "date", requerido: false },
-                { nombre: "link_verificacion", label: "Link Verificación Par Evaluador", tipo: "text", requerido: false },
+                { nombre: "par1_nombre", label: "Par Evaluador 1 - Nombre", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par1_perfil", label: "Par Evaluador 1 - Perfil", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par1_fecha_verificacion", label: "Par Evaluador 1 - Fecha Verificación", tipo: "date", requerido: false, grupo: "par1" },
+                { nombre: "par1_link_verificacion", label: "Par Evaluador 1 - Link Verificación", tipo: "text", requerido: false, grupo: "par1" },
+                { nombre: "par2_nombre", label: "Par Evaluador 2 - Nombre", tipo: "text", requerido: false, grupo: "par2" },
+                { nombre: "par2_perfil", label: "Par Evaluador 2 - Perfil", tipo: "text", requerido: false, grupo: "par2" },
+                { nombre: "par2_fecha_verificacion", label: "Par Evaluador 2 - Fecha Verificación", tipo: "date", requerido: false, grupo: "par2" },
+                { nombre: "par2_link_verificacion", label: "Par Evaluador 2 - Link Verificación", tipo: "text", requerido: false, grupo: "par2" },
                 { nombre: "fecha_invitacion", label: "Fecha Invitación", tipo: "date", requerido: false },
                 { nombre: "fecha_reemision", label: "Fecha Reemisión", tipo: "date", requerido: false }
             ],
@@ -167,24 +196,57 @@
             document.getElementById('btn-cerrar-sesion').classList.remove('hidden');
             
             if (rol === 'JOSE') {
-                document.getElementById('panel-jose').classList.remove('hidden');
-                document.getElementById('header-title').innerText = "SEGUIMIENTO DE SOLICITUDES (JOSÉ)";
-                document.getElementById('header-bg').classList.remove('bg-gray-700');
-                document.getElementById('header-bg').classList.add('bg-green-800');
-                cargarBaseDocentes();
-                cambiarCategoria();
+                mostrarPanelJose();
             } else {
-                document.getElementById('panel-lina').classList.remove('hidden');
-                document.getElementById('header-title').innerText = "COMPILADO Y LIQUIDACIÓN (LINA)";
-                document.getElementById('header-bg').classList.remove('bg-gray-700');
-                document.getElementById('header-bg').classList.add('bg-blue-900');
-                cargarBaseDocentes();
-                cargarPendientesLina();
+                mostrarPanelLina();
             }
+        }
+
+        function mostrarPanelJose() {
+            document.getElementById('panel-jose').classList.remove('hidden');
+            document.getElementById('header-title').innerText = "SEGUIMIENTO DE SOLICITUDES (JOSÉ)";
+            document.getElementById('header-bg').classList.remove('bg-gray-700', 'bg-blue-900');
+            document.getElementById('header-bg').classList.add('bg-green-800');
+            cargarBaseDocentes();
+            cambiarCategoria();
+            cargarRegistrosJose();
+        }
+
+        function mostrarPanelLina() {
+            document.getElementById('panel-lina').classList.remove('hidden');
+            document.getElementById('header-title').innerText = "COMPILADO Y LIQUIDACIÓN (LINA)";
+            document.getElementById('header-bg').classList.remove('bg-gray-700', 'bg-green-800');
+            document.getElementById('header-bg').classList.add('bg-blue-900');
+            cargarBaseDocentes();
+            cargarPendientesLina();
         }
 
         window.cerrarSesion = function() {
             location.reload();
+        };
+
+        window.toggleVista = function() {
+            const vistaFormulario = document.getElementById('vista-formulario');
+            const vistaTabla = document.getElementById('vista-tabla');
+            const btnFormulario = document.getElementById('btn-vista-formulario');
+            const btnTabla = document.getElementById('btn-vista-tabla');
+            
+            if (vistaFormulario.classList.contains('hidden')) {
+                vistaFormulario.classList.remove('hidden');
+                vistaTabla.classList.add('hidden');
+                btnFormulario.classList.add('bg-green-700', 'text-white');
+                btnFormulario.classList.remove('bg-gray-200', 'text-gray-700');
+                btnTabla.classList.remove('bg-green-700', 'text-white');
+                btnTabla.classList.add('bg-gray-200', 'text-gray-700');
+            } else {
+                vistaFormulario.classList.add('hidden');
+                vistaTabla.classList.remove('hidden');
+                btnTabla.classList.add('bg-green-700', 'text-white');
+                btnTabla.classList.remove('bg-gray-200', 'text-gray-700');
+                btnFormulario.classList.remove('bg-green-700', 'text-white');
+                btnFormulario.classList.add('bg-gray-200', 'text-gray-700');
+                cargarRegistrosJose();
+            }
         };
 
         // ==================== CARGAR DOCENTES ====================
@@ -230,7 +292,7 @@
             }
         }
 
-        // ==================== AUTOCOMPLETAR DOCENTE (JOSÉ) ====================
+        // ==================== AUTOCOMPLETAR DOCENTE ====================
         window.autocompletarDocente = function() {
             const nombreInput = document.getElementById('autor');
             const nombreSeleccionado = nombreInput?.value.trim();
@@ -277,52 +339,95 @@
             titulo.textContent = `📋 Información Específica de ${categoria}`;
             camposExtrasContainer.appendChild(titulo);
             
-            campos.forEach(campo => {
-                const div = document.createElement('div');
+            // Detectar si hay pares evaluadores
+            const tienePares = campos.some(c => c.grupo === 'par1' || c.grupo === 'par2');
+            
+            if (tienePares) {
+                // Crear sección Par Evaluador 1
+                const tituloPar1 = document.createElement('h4');
+                tituloPar1.className = 'col-span-2 text-md font-bold text-blue-700 mt-3 mb-2 bg-blue-50 p-2 rounded';
+                tituloPar1.textContent = '👤 Par Evaluador 1';
+                camposExtrasContainer.appendChild(tituloPar1);
                 
-                const label = document.createElement('label');
-                label.className = 'block text-xs font-bold text-gray-600 mb-1';
-                label.textContent = campo.label + (campo.requerido ? ' *' : '');
+                campos.filter(c => c.grupo === 'par1').forEach(campo => {
+                    crearCampo(campo, camposExtrasContainer);
+                });
                 
-                let input;
+                // Crear sección Par Evaluador 2
+                const tituloPar2 = document.createElement('h4');
+                tituloPar2.className = 'col-span-2 text-md font-bold text-purple-700 mt-3 mb-2 bg-purple-50 p-2 rounded';
+                tituloPar2.textContent = '👤 Par Evaluador 2';
+                camposExtrasContainer.appendChild(tituloPar2);
                 
-                if (campo.tipo === 'select') {
-                    input = document.createElement('select');
-                    input.className = 'w-full p-2 border rounded';
+                campos.filter(c => c.grupo === 'par2').forEach(campo => {
+                    crearCampo(campo, camposExtrasContainer);
+                });
+                
+                // Otros campos que no son de pares
+                const otrosCampos = campos.filter(c => !c.grupo);
+                if (otrosCampos.length > 0) {
+                    const tituloOtros = document.createElement('h4');
+                    tituloOtros.className = 'col-span-2 text-md font-bold text-gray-700 mt-3 mb-2 bg-gray-50 p-2 rounded';
+                    tituloOtros.textContent = '📝 Otros Campos';
+                    camposExtrasContainer.appendChild(tituloOtros);
                     
-                    const optionVacia = document.createElement('option');
-                    optionVacia.value = '';
-                    optionVacia.textContent = 'Seleccione...';
-                    input.appendChild(optionVacia);
-                    
-                    campo.opciones.forEach(opcion => {
-                        const option = document.createElement('option');
-                        option.value = opcion;
-                        option.textContent = opcion;
-                        input.appendChild(option);
+                    otrosCampos.forEach(campo => {
+                        crearCampo(campo, camposExtrasContainer);
                     });
-                } else if (campo.tipo === 'textarea') {
-                    input = document.createElement('textarea');
-                    input.rows = 3;
-                    input.className = 'w-full p-2 border rounded';
-                } else {
-                    input = document.createElement('input');
-                    input.type = campo.tipo;
-                    input.className = 'w-full p-2 border rounded';
                 }
-                
-                input.id = campo.nombre;
-                if (campo.requerido) {
-                    input.required = true;
-                }
-                
-                div.appendChild(label);
-                div.appendChild(input);
-                camposExtrasContainer.appendChild(div);
-            });
+            } else {
+                // Si no hay pares, crear campos normalmente
+                campos.forEach(campo => {
+                    crearCampo(campo, camposExtrasContainer);
+                });
+            }
         };
 
-        // ==================== ENVIAR SOLICITUD (JOSÉ) ====================
+        function crearCampo(campo, container) {
+            const div = document.createElement('div');
+            
+            const label = document.createElement('label');
+            label.className = 'block text-xs font-bold text-gray-600 mb-1';
+            label.textContent = campo.label.replace('Par Evaluador 1 - ', '').replace('Par Evaluador 2 - ', '') + (campo.requerido ? ' *' : '');
+            
+            let input;
+            
+            if (campo.tipo === 'select') {
+                input = document.createElement('select');
+                input.className = 'w-full p-2 border rounded';
+                
+                const optionVacia = document.createElement('option');
+                optionVacia.value = '';
+                optionVacia.textContent = 'Seleccione...';
+                input.appendChild(optionVacia);
+                
+                campo.opciones.forEach(opcion => {
+                    const option = document.createElement('option');
+                    option.value = opcion;
+                    option.textContent = opcion;
+                    input.appendChild(option);
+                });
+            } else if (campo.tipo === 'textarea') {
+                input = document.createElement('textarea');
+                input.rows = 3;
+                input.className = 'w-full p-2 border rounded';
+            } else {
+                input = document.createElement('input');
+                input.type = campo.tipo;
+                input.className = 'w-full p-2 border rounded';
+            }
+            
+            input.id = campo.nombre;
+            if (campo.requerido) {
+                input.required = true;
+            }
+            
+            div.appendChild(label);
+            div.appendChild(input);
+            container.appendChild(div);
+        }
+
+        // ==================== ENVIAR/ACTUALIZAR SOLICITUD ====================
         window.enviarSolicitud = async function() {
             const btnEnviar = document.getElementById('btn-enviar-jose');
             const categoriaSeleccionada = document.getElementById('categoria').value;
@@ -354,8 +459,8 @@
             
             try {
                 const datosGenerales = {
-                    tipo_registro: "JOSE",
-                    timestamp: new Date().toISOString(),
+                    tipo_registro: modoEdicion ? "JOSE_EDIT" : "JOSE",
+                    timestamp: modoEdicion ? (document.getElementById('timestamp_original')?.value || new Date().toISOString()) : new Date().toISOString(),
                     categoria: categoriaSeleccionada,
                     anio: document.getElementById('anio').value,
                     semestre: document.getElementById('semestre').value,
@@ -381,9 +486,18 @@
                 
                 console.log('📤 Enviando datos:', datosGenerales);
                 
-                // Guardar en Firebase
-                const docRef = await addDoc(collection(db, 'solicitudes'), datosGenerales);
-                console.log('✅ Guardado en Firebase:', docRef.id);
+                if (modoEdicion && idRegistroActual) {
+                    // ACTUALIZAR registro existente
+                    const docRef = doc(db, 'solicitudes', idRegistroActual);
+                    await updateDoc(docRef, datosGenerales);
+                    console.log('✅ Actualizado en Firebase:', idRegistroActual);
+                    
+                    datosGenerales._fila = document.getElementById('fila_original')?.value;
+                } else {
+                    // CREAR nuevo registro
+                    const docRef = await addDoc(collection(db, 'solicitudes'), datosGenerales);
+                    console.log('✅ Guardado en Firebase:', docRef.id);
+                }
                 
                 // Enviar a Google Sheets
                 const responseSheets = await fetch(urlAppsScript, {
@@ -395,8 +509,9 @@
                 console.log('✅ Respuesta de Sheets:', resultSheets);
                 
                 if (resultSheets.status === 'success') {
-                    alert('✅ Solicitud enviada correctamente');
+                    alert(modoEdicion ? '✅ Registro actualizado correctamente' : '✅ Solicitud enviada correctamente');
                     limpiarFormularioJose();
+                    cargarRegistrosJose();
                 } else {
                     throw new Error(resultSheets.message || 'Error desconocido');
                 }
@@ -406,7 +521,7 @@
                 alert('❌ Error al enviar: ' + error.message);
             } finally {
                 btnEnviar.disabled = false;
-                btnEnviar.textContent = '✅ ENVIAR SOLICITUD';
+                btnEnviar.textContent = modoEdicion ? '💾 GUARDAR CAMBIOS' : '✅ ENVIAR SOLICITUD';
             }
         };
 
@@ -414,7 +529,127 @@
             document.getElementById('form-jose').reset();
             document.getElementById('campos-extras-jose').innerHTML = '';
             docenteSeleccionadoActual = null;
+            modoEdicion = false;
+            idRegistroActual = null;
+            document.getElementById('btn-enviar-jose').textContent = '✅ ENVIAR SOLICITUD';
         }
+
+        // ==================== CARGAR REGISTROS JOSÉ ====================
+        async function cargarRegistrosJose() {
+            try {
+                const q = query(collection(db, 'solicitudes'), orderBy('timestamp', 'desc'));
+                const querySnapshot = await getDocs(q);
+                
+                const tablaRegistros = document.getElementById('tabla-registros-jose');
+                tablaRegistros.innerHTML = '';
+                
+                if (querySnapshot.empty) {
+                    tablaRegistros.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">No hay registros</td></tr>';
+                    return;
+                }
+                
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-green-50 cursor-pointer transition';
+                    
+                    const estadoColor = data.estado_ciarp === 'Aprobado' ? 'text-green-700 font-bold' :
+                                       data.estado_ciarp === 'No Aprobado' ? 'text-red-700 font-bold' :
+                                       'text-yellow-700 font-bold';
+                    
+                    let tituloProducto = obtenerTituloProducto(data);
+                    
+                    tr.innerHTML = `
+                        <td class="border p-3 text-sm">${data.categoria || ''}</td>
+                        <td class="border p-3 text-sm font-semibold">${tituloProducto}</td>
+                        <td class="border p-3 text-sm">${data.autor || ''}</td>
+                        <td class="border p-3 text-sm">${data.programa || ''}</td>
+                        <td class="border p-3 text-sm ${estadoColor}">${data.estado_ciarp || 'Pendiente'}</td>
+                        <td class="border p-3 text-sm text-center font-bold text-blue-700">${data.puntaje_asignado || '0'}</td>
+                        <td class="border p-3 text-center">
+                            <button onclick="editarRegistroJose('${doc.id}')" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-bold">
+                                ✏️ EDITAR
+                            </button>
+                        </td>
+                    `;
+                    
+                    tablaRegistros.appendChild(tr);
+                });
+                
+            } catch (error) {
+                console.error('❌ Error al cargar registros:', error);
+                alert('❌ Error al cargar registros');
+            }
+        }
+
+        window.editarRegistroJose = async function(idDoc) {
+            try {
+                const docRef = doc(db, 'solicitudes', idDoc);
+                const docSnap = await getDoc(docRef);
+                
+                if (!docSnap.exists()) {
+                    alert('❌ Registro no encontrado');
+                    return;
+                }
+                
+                const data = docSnap.data();
+                
+                // Cambiar a vista de formulario
+                document.getElementById('vista-formulario').classList.remove('hidden');
+                document.getElementById('vista-tabla').classList.add('hidden');
+                document.getElementById('btn-vista-formulario').classList.add('bg-green-700', 'text-white');
+                document.getElementById('btn-vista-formulario').classList.remove('bg-gray-200', 'text-gray-700');
+                document.getElementById('btn-vista-tabla').classList.remove('bg-green-700', 'text-white');
+                document.getElementById('btn-vista-tabla').classList.add('bg-gray-200', 'text-gray-700');
+                
+                // Activar modo edición
+                modoEdicion = true;
+                idRegistroActual = idDoc;
+                
+                // Llenar formulario
+                document.getElementById('categoria').value = data.categoria || '';
+                cambiarCategoria();
+                
+                document.getElementById('anio').value = data.anio || '';
+                document.getElementById('semestre').value = data.semestre || '';
+                document.getElementById('fecha_recibido').value = data.fecha_recibido || '';
+                document.getElementById('autor').value = data.autor || '';
+                document.getElementById('programa').value = data.programa || '';
+                document.getElementById('observaciones-jose').value = data.observaciones_jose || '';
+                
+                // Llenar campos específicos
+                const campos = CAMPOS_POR_CATEGORIA[data.categoria] || [];
+                campos.forEach(campo => {
+                    const input = document.getElementById(campo.nombre);
+                    if (input && data[campo.nombre]) {
+                        input.value = data[campo.nombre];
+                    }
+                });
+                
+                // Guardar datos originales
+                const inputTimestamp = document.createElement('input');
+                inputTimestamp.type = 'hidden';
+                inputTimestamp.id = 'timestamp_original';
+                inputTimestamp.value = data.timestamp;
+                document.getElementById('form-jose').appendChild(inputTimestamp);
+                
+                const inputFila = document.createElement('input');
+                inputFila.type = 'hidden';
+                inputFila.id = 'fila_original';
+                inputFila.value = data._fila || '';
+                document.getElementById('form-jose').appendChild(inputFila);
+                
+                // Cambiar texto del botón
+                document.getElementById('btn-enviar-jose').textContent = '💾 GUARDAR CAMBIOS';
+                
+                // Scroll al inicio
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                
+            } catch (error) {
+                console.error('❌ Error al cargar registro:', error);
+                alert('❌ Error al cargar registro');
+            }
+        };
 
         // ==================== CARGAR PENDIENTES (LINA) ====================
         async function cargarPendientesLina() {
@@ -440,19 +675,7 @@
                                        data.estado_ciarp === 'No Aprobado' ? 'text-red-700 font-bold' :
                                        'text-yellow-700 font-bold';
                     
-                    // Obtener el título según la categoría
-                    let tituloProducto = '';
-                    if (data.nombre_articulo) tituloProducto = data.nombre_articulo;
-                    else if (data.titulo_libro) tituloProducto = data.titulo_libro;
-                    else if (data.titulo_software) tituloProducto = data.titulo_software;
-                    else if (data.titulo_produccion) tituloProducto = data.titulo_produccion;
-                    else if (data.titulo_obra) tituloProducto = data.titulo_obra;
-                    else if (data.titulo_patente) tituloProducto = data.titulo_patente;
-                    else if (data.titulo_trabajo_premio) tituloProducto = data.titulo_trabajo_premio;
-                    else if (data.titulo_ponencia) tituloProducto = data.titulo_ponencia;
-                    else if (data.titulo_tesis) tituloProducto = data.titulo_tesis;
-                    else if (data.titulo_trabajo_posdoctoral) tituloProducto = data.titulo_trabajo_posdoctoral;
-                    else if (data.titulo_obtenido) tituloProducto = data.titulo_obtenido;
+                    let tituloProducto = obtenerTituloProducto(data);
                     
                     tr.innerHTML = `
                         <td class="border p-3 text-sm">${data.categoria || ''}</td>
@@ -472,23 +695,26 @@
             }
         }
 
+        function obtenerTituloProducto(data) {
+            if (data.nombre_articulo) return data.nombre_articulo;
+            if (data.titulo_libro) return data.titulo_libro;
+            if (data.titulo_software) return data.titulo_software;
+            if (data.titulo_produccion) return data.titulo_produccion;
+            if (data.titulo_obra) return data.titulo_obra;
+            if (data.titulo_patente) return data.titulo_patente;
+            if (data.titulo_trabajo_premio) return data.titulo_trabajo_premio;
+            if (data.titulo_ponencia) return data.titulo_ponencia;
+            if (data.titulo_tesis) return data.titulo_tesis;
+            if (data.titulo_trabajo_posdoctoral) return data.titulo_trabajo_posdoctoral;
+            if (data.titulo_obtenido) return data.titulo_obtenido;
+            return '';
+        }
+
         // ==================== ABRIR MODAL EVALUACIÓN (LINA) ====================
         window.abrirModalEvaluacion = async function(idDoc, data) {
             idRegistroActual = idDoc;
             
-            // Obtener el título según la categoría
-            let tituloProducto = '';
-            if (data.nombre_articulo) tituloProducto = data.nombre_articulo;
-            else if (data.titulo_libro) tituloProducto = data.titulo_libro;
-            else if (data.titulo_software) tituloProducto = data.titulo_software;
-            else if (data.titulo_produccion) tituloProducto = data.titulo_produccion;
-            else if (data.titulo_obra) tituloProducto = data.titulo_obra;
-            else if (data.titulo_patente) tituloProducto = data.titulo_patente;
-            else if (data.titulo_trabajo_premio) tituloProducto = data.titulo_trabajo_premio;
-            else if (data.titulo_ponencia) tituloProducto = data.titulo_ponencia;
-            else if (data.titulo_tesis) tituloProducto = data.titulo_tesis;
-            else if (data.titulo_trabajo_posdoctoral) tituloProducto = data.titulo_trabajo_posdoctoral;
-            else if (data.titulo_obtenido) tituloProducto = data.titulo_obtenido;
+            let tituloProducto = obtenerTituloProducto(data);
             
             // Información de José
             document.getElementById('info-categoria').textContent = data.categoria || '';
@@ -498,10 +724,10 @@
             document.getElementById('info-programa').textContent = data.programa || '';
             document.getElementById('info-obs-jose').textContent = data.observaciones_jose || 'Sin observaciones';
             
-            // Mostrar TODOS los campos específicos de José
+            // Mostrar campos específicos de José
             mostrarCamposEspecificosJose(data);
             
-            // Buscar y mostrar TODA la información del docente
+            // Buscar y mostrar información del docente
             let docente = null;
             if (data.docente_info) {
                 docente = data.docente_info;
@@ -523,16 +749,9 @@
                 document.getElementById('info-municipio-expedicion').textContent = docente.municipioExpedicion || '';
             } else {
                 document.getElementById('buscar-docente-lina').value = data.autor;
-                document.getElementById('info-cedula').textContent = 'No encontrado';
-                document.getElementById('info-correo').textContent = '';
-                document.getElementById('info-escolaridad').textContent = '';
-                document.getElementById('info-categoria-doc').textContent = '';
-                document.getElementById('info-dedicacion').textContent = '';
-                document.getElementById('info-facultad').textContent = '';
-                document.getElementById('info-contacto').textContent = '';
-                document.getElementById('info-cargo').textContent = '';
-                document.getElementById('info-depto-expedicion').textContent = '';
-                document.getElementById('info-municipio-expedicion').textContent = '';
+                ['cedula', 'correo', 'escolaridad', 'categoria-doc', 'dedicacion', 'facultad', 'contacto', 'cargo', 'depto-expedicion', 'municipio-expedicion'].forEach(id => {
+                    document.getElementById('info-' + id).textContent = id === 'cedula' ? 'No encontrado' : '';
+                });
             }
             
             // Campos editables de Lina
@@ -562,14 +781,62 @@
             titulo.textContent = `Campos Específicos Capturados:`;
             container.appendChild(titulo);
             
-            campos.forEach(campo => {
-                const valor = data[campo.nombre];
-                if (valor) {
-                    const div = document.createElement('div');
-                    div.innerHTML = `<strong class="text-gray-700">${campo.label}:</strong> <span class="text-gray-900">${valor}</span>`;
-                    container.appendChild(div);
+            // Detectar si hay pares
+            const tienePares = campos.some(c => c.grupo === 'par1' || c.grupo === 'par2');
+            
+            if (tienePares) {
+                // Mostrar Par 1
+                const par1Campos = campos.filter(c => c.grupo === 'par1');
+                if (par1Campos.some(c => data[c.nombre])) {
+                    const tituloPar1 = document.createElement('div');
+                    tituloPar1.className = 'col-span-3 text-xs font-bold text-blue-700 mt-2 bg-blue-50 p-2 rounded';
+                    tituloPar1.textContent = '👤 Par Evaluador 1:';
+                    container.appendChild(tituloPar1);
+                    
+                    par1Campos.forEach(campo => {
+                        if (data[campo.nombre]) {
+                            const div = document.createElement('div');
+                            div.innerHTML = `<strong class="text-gray-700">${campo.label.replace('Par Evaluador 1 - ', '')}:</strong> <span class="text-gray-900">${data[campo.nombre]}</span>`;
+                            container.appendChild(div);
+                        }
+                    });
                 }
-            });
+                
+                // Mostrar Par 2
+                const par2Campos = campos.filter(c => c.grupo === 'par2');
+                if (par2Campos.some(c => data[c.nombre])) {
+                    const tituloPar2 = document.createElement('div');
+                    tituloPar2.className = 'col-span-3 text-xs font-bold text-purple-700 mt-2 bg-purple-50 p-2 rounded';
+                    tituloPar2.textContent = '👤 Par Evaluador 2:';
+                    container.appendChild(tituloPar2);
+                    
+                    par2Campos.forEach(campo => {
+                        if (data[campo.nombre]) {
+                            const div = document.createElement('div');
+                            div.innerHTML = `<strong class="text-gray-700">${campo.label.replace('Par Evaluador 2 - ', '')}:</strong> <span class="text-gray-900">${data[campo.nombre]}</span>`;
+                            container.appendChild(div);
+                        }
+                    });
+                }
+                
+                // Otros campos
+                const otrosCampos = campos.filter(c => !c.grupo);
+                otrosCampos.forEach(campo => {
+                    if (data[campo.nombre]) {
+                        const div = document.createElement('div');
+                        div.innerHTML = `<strong class="text-gray-700">${campo.label}:</strong> <span class="text-gray-900">${data[campo.nombre]}</span>`;
+                        container.appendChild(div);
+                    }
+                });
+            } else {
+                campos.forEach(campo => {
+                    if (data[campo.nombre]) {
+                        const div = document.createElement('div');
+                        div.innerHTML = `<strong class="text-gray-700">${campo.label}:</strong> <span class="text-gray-900">${data[campo.nombre]}</span>`;
+                        container.appendChild(div);
+                    }
+                });
+            }
         }
 
         window.cerrarModal = function() {
@@ -712,10 +979,24 @@
 
     <!-- PANEL JOSÉ -->
     <div id="panel-jose" class="hidden max-w-7xl mx-auto mt-8 px-4 pb-8">
-        <div class="bg-white rounded-2xl shadow-xl p-8">
+        
+        <!-- BOTONES DE NAVEGACIÓN -->
+        <div class="bg-white rounded-xl shadow-lg p-4 mb-6 flex gap-4">
+            <button id="btn-vista-formulario" onclick="toggleVista()" 
+                    class="flex-1 bg-green-700 text-white py-3 px-6 rounded-lg font-bold hover:bg-green-800 transition">
+                📝 NUEVO REGISTRO
+            </button>
+            <button id="btn-vista-tabla" onclick="toggleVista()" 
+                    class="flex-1 bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-bold hover:bg-gray-300 transition">
+                📋 MIS REGISTROS
+            </button>
+        </div>
+
+        <!-- VISTA FORMULARIO -->
+        <div id="vista-formulario" class="bg-white rounded-2xl shadow-xl p-8">
             <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
                 <span class="bg-green-700 text-white p-3 rounded-lg">📝</span>
-                REGISTRO DE NUEVA SOLICITUD
+                REGISTRO DE SOLICITUD
             </h2>
             
             <form id="form-jose" class="space-y-6">
@@ -780,7 +1061,6 @@
 
                 <!-- Campos Específicos Dinámicos -->
                 <div id="campos-extras-jose" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Aquí se insertarán los campos específicos según la categoría -->
                 </div>
 
                 <!-- Observaciones -->
@@ -794,6 +1074,33 @@
                     ✅ ENVIAR SOLICITUD
                 </button>
             </form>
+        </div>
+
+        <!-- VISTA TABLA -->
+        <div id="vista-tabla" class="hidden bg-white rounded-2xl shadow-xl p-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-3">
+                <span class="bg-green-700 text-white p-3 rounded-lg">📋</span>
+                MIS REGISTROS
+            </h2>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse">
+                    <thead>
+                        <tr class="bg-green-700 text-white">
+                            <th class="border p-3 text-sm font-bold">Categoría</th>
+                            <th class="border p-3 text-sm font-bold">Título</th>
+                            <th class="border p-3 text-sm font-bold">Autor</th>
+                            <th class="border p-3 text-sm font-bold">Programa</th>
+                            <th class="border p-3 text-sm font-bold">Estado</th>
+                            <th class="border p-3 text-sm font-bold">Puntaje</th>
+                            <th class="border p-3 text-sm font-bold">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-registros-jose">
+                        <tr><td colspan="7" class="text-center py-8 text-gray-500">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -845,15 +1152,14 @@
                         <div class="col-span-2"><strong class="text-gray-700">Programa:</strong> <span id="info-programa" class="text-gray-900"></span></div>
                         <div class="col-span-3"><strong class="text-gray-700">Observaciones:</strong> <span id="info-obs-jose" class="text-gray-900"></span></div>
                         
-                        <!-- Campos específicos capturados por José -->
                         <div id="campos-especificos-jose" class="col-span-3 grid grid-cols-3 gap-3">
                         </div>
                     </div>
                 </div>
 
-                <!-- Datos COMPLETOS del Docente -->
+                <!-- Datos Completos del Docente -->
                 <div class="bg-yellow-50 p-6 rounded-lg border-2 border-yellow-200">
-                    <h3 class="font-bold text-yellow-900 mb-4 text-lg">👤 Información Completa del Docente (BD_Docentes)</h3>
+                    <h3 class="font-bold text-yellow-900 mb-4 text-lg">👤 Información Completa del Docente</h3>
                     <div class="mb-3">
                         <label class="block text-xs font-bold text-gray-700 mb-1">Docente</label>
                         <input type="text" id="buscar-docente-lina" list="lista-docentes-lina" 
@@ -876,7 +1182,7 @@
 
                 <!-- Evaluación de Lina -->
                 <div class="bg-blue-50 p-6 rounded-lg border-2 border-blue-200">
-                    <h3 class="font-bold text-blue-900 mb-4 text-lg">⭐ Evaluación CIARP (Editable)</h3>
+                    <h3 class="font-bold text-blue-900 mb-4 text-lg">⭐ Evaluación CIARP</h3>
                     
                     <div class="mb-4">
                         <label class="block text-sm font-bold text-gray-700 mb-2">Estado CIARP</label>
