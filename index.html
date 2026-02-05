@@ -3,86 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Grupos - UQ</title>
+    <title>Sincronización Sheets - UQ</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body class="bg-slate-50 min-h-screen font-sans">
+<body class="bg-slate-50 min-h-screen">
 
-    <!-- Header Estilo Dashboard -->
     <header class="bg-green-800 text-white shadow-lg p-6 mb-8">
-        <div class="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
             <div>
                 <h1 class="text-2xl font-bold flex items-center gap-2">
-                    <i data-lucide="layout-dashboard"></i>
-                    Gestión de Grupos de Trabajo
+                    <i data-lucide="sheet"></i>
+                    Gestión de Grupos - Uniquindío
                 </h1>
-                <p class="text-green-100 opacity-80">Productividad UQ 2024 - Registro en Tiempo Real</p>
+                <p class="opacity-80">Sincronizado con Google Sheets</p>
             </div>
-            <div class="flex gap-4">
-                <div class="bg-green-900/40 p-3 rounded-lg border border-green-700 text-center min-w-[120px]">
-                    <span id="total-grupos" class="block text-2xl font-bold">0</span>
-                    <span class="text-xs uppercase opacity-70">Grupos Llenos</span>
-                </div>
-                <div class="bg-green-900/40 p-3 rounded-lg border border-green-700 text-center min-w-[120px]">
-                    <span id="cupos-libres" class="block text-2xl font-bold">0</span>
-                    <span class="text-xs uppercase opacity-70">Cupos Libres</span>
-                </div>
-            </div>
+            <button onclick="sincronizarDesdeSheets()" class="bg-white/20 hover:bg-white/30 p-2 rounded-lg flex items-center gap-2 transition">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Actualizar desde Excel
+            </button>
         </div>
     </header>
 
     <main class="max-w-6xl mx-auto px-4 pb-12">
-        <!-- Contenedor de la Tabla -->
-        <div class="bg-white rounded-xl shadow-md overflow-hidden border border-slate-200">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead class="bg-slate-100 border-b border-slate-200 text-slate-600 uppercase text-xs font-bold">
-                        <tr>
-                            <th class="p-4">Grupo</th>
-                            <th class="p-4">Integrantes / Nombres</th>
-                            <th class="p-4 text-center">Estado</th>
-                            <th class="p-4">Fecha Presentación</th>
-                            <th class="p-4">Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabla-cuerpo" class="divide-y divide-slate-100">
-                        <!-- Los datos se cargan desde Firebase -->
-                    </tbody>
-                </table>
-            </div>
+        <div id="loading" class="text-center py-10">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-800 mx-auto"></div>
+            <p id="loading-text" class="mt-4 text-slate-600 font-medium text-lg">Iniciando sesión segura...</p>
+        </div>
+
+        <div id="content" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Los grupos se cargarán aquí -->
         </div>
     </main>
 
-    <!-- Modal de Registro -->
-    <div id="modal-registro" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+    <!-- Modal Registro -->
+    <div id="modal-registro" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <h2 id="modal-titulo" class="text-xl font-bold text-slate-800 mb-4">Inscribirse en Grupo</h2>
+            <h2 id="modal-titulo" class="text-xl font-bold text-slate-800 mb-4">Inscribirse</h2>
             <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Nombres de Integrantes</label>
-                    <input type="text" id="input-nombres" placeholder="Ej: Juan Pérez y Ana Gómez" 
-                           class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Título del Trabajo (Opcional)</label>
-                    <input type="text" id="input-titulo" placeholder="Nombre del proyecto" 
-                           class="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
-                </div>
-                <div class="flex gap-3 mt-6">
-                    <button onclick="cerrarModal()" class="flex-1 px-4 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition">Cancelar</button>
-                    <button onclick="guardarRegistro()" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-bold">Confirmar</button>
-                </div>
+                <input type="text" id="input-nombres" placeholder="Nombres de los integrantes" class="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-green-500">
+                <input type="text" id="input-titulo" placeholder="Título del trabajo" class="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-green-500">
+                <button id="btn-confirmar" onclick="guardarEnAmbos()" class="w-full py-3 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition">CONFIRMAR INSCRIPCIÓN</button>
+                <button onclick="cerrarModal()" class="w-full py-2 text-slate-500 font-medium">Cancelar</button>
             </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, updateDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-        // Usamos tu misma configuración
+        // === PEGA TU URL DE GOOGLE APPS SCRIPT AQUÍ ===
+        const URL_SHEETS = "https://script.google.com/a/macros/uniquindio.edu.co/s/AKfycbx_S0nv7klETesWARLB0e68JJ7EwskGC-MBFFoPf1mcfnB01DOn6LfksAk_mDO1WENL4w/exec"; 
+        
         const firebaseConfig = {
             apiKey: "AIzaSyBbqMf8ZOmqmbGTmr2tr8nziyUWKSE6OWg",
             authDomain: "uniquindio-produccion.firebaseapp.com",
@@ -93,75 +66,99 @@
         };
 
         const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getFirestore(app);
-        
-        let grupoSeleccionadoId = null;
+        let idSeleccionado = "";
+        let usuarioActual = null;
 
-        // Cargar datos en tiempo real (Sincronizado)
-        function cargarGrupos() {
-            onSnapshot(collection(db, "grupos_clase"), (snapshot) => {
-                const tbody = document.getElementById('tabla-cuerpo');
-                tbody.innerHTML = '';
-                let llenos = 0;
-                let libres = 0;
+        // Función para iniciar sesión anónima (Evita el error de permisos)
+        const iniciarSesion = async () => {
+            try {
+                await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Error al autenticar:", error);
+                document.getElementById('loading-text').innerText = "Error de conexión. Intenta recargar.";
+            }
+        };
 
-                // Si no hay datos, inicializar grupos por defecto
-                if (snapshot.empty) {
-                    inicializarGrupos();
-                    return;
+        // Escuchar cambios de autenticación
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                usuarioActual = user;
+                document.getElementById('loading-text').innerText = "Cargando grupos...";
+                iniciarEscuchaGrupos();
+                if (URL_SHEETS !== "TU_URL_DE_APPS_SCRIPT_AQUI") {
+                    sincronizarDesdeSheets();
                 }
+            } else {
+                iniciarSesion();
+            }
+        });
 
-                snapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const id = doc.id;
+        // Sincronizar Excel -> Firebase
+        async function sincronizarDesdeSheets() {
+            if (!usuarioActual || URL_SHEETS.includes("TU_URL")) return;
+            try {
+                const res = await fetch(URL_SHEETS);
+                const data = await res.json();
+                
+                for (const item of data) {
+                    const id = item.columna_1 || item.grupo;
+                    if (!id) continue;
                     
-                    if (data.estado === 'Completada') llenos++; else libres++;
-
-                    const row = `
-                        <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="p-4 font-bold text-slate-700">${id}</td>
-                            <td class="p-4">
-                                <span class="block font-medium text-slate-800">${data.nombres || '---'}</span>
-                                <span class="text-xs text-slate-400 italic">${data.titulo || ''}</span>
-                            </td>
-                            <td class="p-4 text-center">
-                                <span class="px-3 py-1 rounded-full text-xs font-bold ${
-                                    data.estado === 'Completada' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                }">
-                                    ${data.estado}
-                                </span>
-                            </td>
-                            <td class="p-4 text-slate-500 text-sm">${data.fecha}</td>
-                            <td class="p-4">
-                                ${data.estado !== 'Completada' ? 
-                                    `<button onclick="abrirModal('${id}')" class="bg-blue-600 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-700 transition">Inscribirse</button>` :
-                                    `<button class="bg-slate-200 text-slate-400 px-3 py-1 rounded-md text-sm cursor-not-allowed" disabled>Cerrado</button>`
-                                }
-                            </td>
-                        </tr>
-                    `;
-                    tbody.innerHTML += row;
-                });
-
-                document.getElementById('total-grupos').innerText = llenos;
-                document.getElementById('cupos-libres').innerText = libres;
-            });
-        }
-
-        // Inicializar 10 grupos si la colección está vacía
-        async function inicializarGrupos() {
-            for (let i = 1; i <= 10; i++) {
-                await setDoc(doc(db, "grupos_clase", `Grupo ${i}`), {
-                    nombres: "",
-                    estado: "Cupo Libre",
-                    fecha: "2024-03-15",
-                    titulo: ""
-                });
+                    await setDoc(doc(db, "grupos_clase", id), {
+                        nombres: item.nombres || "",
+                        estado: item.estado || "Cupo Libre",
+                        fecha: item.fecha_de_presentación || item.fecha || "Pendiente",
+                        titulo: item.titulo_del_trabajo || ""
+                    }, { merge: true });
+                }
+            } catch (e) {
+                console.error("Error al leer de Sheets:", e);
             }
         }
 
+        // Escuchar cambios en tiempo real desde Firebase (Solo después de autenticar)
+        function iniciarEscuchaGrupos() {
+            onSnapshot(collection(db, "grupos_clase"), (snapshot) => {
+                const container = document.getElementById('content');
+                const loading = document.getElementById('loading');
+                container.innerHTML = '';
+                loading.classList.add('hidden');
+                container.classList.remove('hidden');
+
+                const docs = [];
+                snapshot.forEach(d => docs.push({id: d.id, ...d.data()}));
+                
+                docs.sort((a, b) => a.id.localeCompare(b.id, undefined, {numeric: true}));
+
+                docs.forEach(d => {
+                    const estaOcupado = d.estado === 'Completada' || d.estado === 'Bloqueada';
+                    const card = `
+                        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm transition hover:shadow-md ${estaOcupado ? 'bg-slate-50' : ''}">
+                            <div class="flex justify-between items-start mb-3">
+                                <span class="font-bold text-green-800 text-lg">${d.id}</span>
+                                <span class="text-[10px] px-2 py-1 rounded-full bg-slate-200 text-slate-600 font-bold uppercase">${d.fecha}</span>
+                            </div>
+                            <p class="text-slate-700 font-semibold mb-1 min-h-[1.5rem]">${d.nombres || '<span class="text-slate-300 font-normal italic">Disponible</span>'}</p>
+                            <p class="text-xs text-slate-400 mb-4 h-8 overflow-hidden line-clamp-2">${d.titulo || ''}</p>
+                            
+                            ${!estaOcupado ? 
+                                `<button onclick="abrirModal('${d.id}')" class="w-full py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition">Inscribirse</button>` :
+                                `<div class="text-center py-2 bg-slate-200 text-slate-500 rounded-lg text-sm font-bold uppercase">${d.estado}</div>`
+                            }
+                        </div>
+                    `;
+                    container.innerHTML += card;
+                });
+                lucide.createIcons();
+            }, (error) => {
+                console.error("Error en el listener:", error);
+            });
+        }
+
         window.abrirModal = (id) => {
-            grupoSeleccionadoId = id;
+            idSeleccionado = id;
             document.getElementById('modal-titulo').innerText = `Inscribirse en ${id}`;
             document.getElementById('modal-registro').classList.remove('hidden');
         };
@@ -172,29 +169,40 @@
             document.getElementById('input-titulo').value = '';
         };
 
-        window.guardarRegistro = async () => {
+        window.guardarEnAmbos = async () => {
+            if (!usuarioActual) return alert("Espera a que se inicie la sesión.");
             const nombres = document.getElementById('input-nombres').value;
             const titulo = document.getElementById('input-titulo').value;
+            const btn = document.getElementById('btn-confirmar');
 
-            if (!nombres) return alert("Por favor ingresa los nombres.");
+            if(!nombres) return alert("Por favor, ingresa los nombres.");
+            
+            btn.innerText = "Guardando...";
+            btn.disabled = true;
 
             try {
-                const docRef = doc(db, "grupos_clase", grupoSeleccionadoId);
-                await updateDoc(docRef, {
-                    nombres: nombres,
-                    titulo: titulo,
-                    estado: "Completada"
-                });
+                await setDoc(doc(db, "grupos_clase", idSeleccionado), {
+                    nombres, titulo, estado: "Completada"
+                }, { merge: true });
+
+                if (URL_SHEETS && !URL_SHEETS.includes("TU_URL")) {
+                    await fetch(URL_SHEETS, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ grupo: idSeleccionado, nombres, titulo })
+                    });
+                }
                 cerrarModal();
             } catch (e) {
-                console.error("Error al registrar:", e);
+                alert("Error al guardar.");
+            } finally {
+                btn.innerText = "CONFIRMAR INSCRIPCIÓN";
+                btn.disabled = false;
             }
         };
 
-        window.onload = () => {
-            lucide.createIcons();
-            cargarGrupos();
-        };
+        window.sincronizarDesdeSheets = sincronizarDesdeSheets;
     </script>
 </body>
 </html>
